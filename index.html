@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>智盈AI</title>
+    <!-- PWA相关元标签 -->
+    <meta name="description" content="基于AI的智能投资分析和决策助手" />
+    <meta name="theme-color" content="#1890ff" />
+    <link rel="manifest" href="./manifest.json" />
+    <!-- Apple PWA相关 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="智盈AI" />
+    <link rel="apple-touch-icon" href="/favicon.ico" />
+    <script type="module" crossorigin src="./assets/index-DNY7I0DW.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/react-vendor-B2mcsgti.js">
+    <link rel="modulepreload" crossorigin href="./assets/antd-vendor-Cs-Aa3Pb.js">
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Service Worker注册 -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+              console.log('Service Worker 注册成功:', registration.scope);
+            })
+            .catch((error) => {
+              console.error('Service Worker 注册失败:', error);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
