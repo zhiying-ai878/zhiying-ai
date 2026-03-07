@@ -1,0 +1,1 @@
+import{j as r}from"./index-CkcxFiy_.js";import"./react-vendor-B2mcsgti.js";import"./antd-vendor--KKSAycl.js";const e=()=>r.jsxs("div",{children:[r.jsx("h2",{children:"投资社区"}),r.jsx("p",{children:"社交功能正在开发中..."})]});export{e as default};
