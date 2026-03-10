@@ -61,7 +61,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         username: values.username,
         password: values.password,
         email: values.email,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        isAuthorized: false
       };
       
       savedUsers.push(newUser);
@@ -180,12 +181,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 label="密码"
                 rules={[
                   { required: true, message: '请输入密码' },
-                  { min: 6, message: '密码至少6个字符' }
+                  { min: 8, message: '密码至少8个字符' },
+                  {
+                    pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+                    message: '密码必须包含大小写字母、数字和特殊字符'
+                  }
                 ]}
               >
                 <Input.Password
                   prefix={<LockOutlined className="site-form-item-icon" />}
-                  placeholder="请输入密码（至少6个字符）"
+                  placeholder="请输入密码（至少8个字符，包含大小写字母、数字和特殊字符）"
                   size="large"
                   visibilityToggle={{
                     visible: registerPasswordVisible,

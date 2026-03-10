@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Tabs, List, Tag, Button, Space, Statistic, Row, Col, Progress, Switch, Form, Select, InputNumber, message, Alert, Badge } from 'antd';
-import { NotificationOutlined, BellOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, SettingOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Tabs, List, Tag, Button, Space, Statistic, Row, Col, Progress, Switch, Form, Select, InputNumber, message, Alert, Badge, Modal } from 'antd';
+import { NotificationOutlined, BellOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, SettingOutlined, FilterOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import * as SignalManager from '../../utils/optimizedSignalManager';
 import { getMainForceTracker, type MainForceData } from '../../utils/mainForceTracker';
 
@@ -26,6 +26,7 @@ const Signal = () => {
   const [signalConfig, setSignalConfig] = useState({ buyEnabled: true, sellEnabled: true, holdEnabled: false, minConfidence: 60, scanInterval: 5 });
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   
   const signalManager = getOptimizedSignalManager();
   const signalTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -43,8 +44,10 @@ const Signal = () => {
 
   const loadSignals = () => {
     const history = signalManager.getSignalHistory();
-    setSignals(history);
-    const unread = history.filter((s: OptimizedSignal) => !s.isRead).length;
+    // 按时间戳降序排序，最新的信号排在前面
+    const sortedHistory = history.sort((a, b) => b.timestamp - a.timestamp);
+    setSignals(sortedHistory);
+    const unread = sortedHistory.filter((s: OptimizedSignal) => !s.isRead).length;
     setUnreadCount(unread);
   };
 
@@ -130,6 +133,18 @@ const Signal = () => {
     return tagMap[type] || tagMap.hold;
   };
 
+  // 添加删除历史信号的方法
+  const handleClearHistory = () => {
+    setModalVisible(true);
+  };
+
+  const confirmClearHistory = () => {
+    signalManager.clearSignalHistory();
+    setModalVisible(false);
+    loadSignals();
+    message.success('历史信号已清空');
+  };
+
   const realtimeSignalsTab = {
     key: '1',
     label: <span><Badge count={unreadCount}><NotificationOutlined />实时信号</Badge></span>,
@@ -141,15 +156,25 @@ const Signal = () => {
           <Col xs={12} sm={6}><Card size="small" style={{ margin: '2px' }}><Statistic title="未读信号" value={unreadCount} valueStyle={{ color: '#1890ff' }} prefix={<BellOutlined />} /></Card></Col>
           <Col xs={12} sm={6}>
             <Card size="small" style={{ margin: '2px' }}>
-              <Button 
-                type="primary" 
-                icon={<ReloadOutlined />} 
-                onClick={() => { setLoading(true); generateMockSignals(); setLoading(false); }}
-                loading={loading}
-                block
-              >
-                刷新信号
-              </Button>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button 
+                  type="primary" 
+                  icon={<ReloadOutlined />} 
+                  onClick={() => { setLoading(true); generateMockSignals(); setLoading(false); }}
+                  loading={loading}
+                  block
+                >
+                  刷新信号
+                </Button>
+                <Button 
+                  danger 
+                  icon={<DeleteOutlined />} 
+                  onClick={handleClearHistory}
+                  block
+                >
+                  清空历史
+                </Button>
+              </Space>
             </Card>
           </Col>
         </Row>
@@ -180,6 +205,7 @@ const Signal = () => {
                         </div>
                         <div style={{ display: 'flex', gap: '16px', marginBottom: '8px', flexWrap: 'wrap' }}>
                           {item.price && <span>价格：<strong>{item.price.toFixed(2)}</strong></span>}
+                          {item.targetPrice && <span>目标：<strong>{item.targetPrice.toFixed(2)}</strong></span>}
                           <span>置信度：</span><Progress percent={item.confidence} size="small" style={{ width: '80px' }} />
                           <span>评分：<strong>{item.score}</strong></span>
                           {item.mainForceFlow && (
@@ -228,6 +254,15 @@ const Signal = () => {
     label: <span><ClockCircleOutlined />信号历史</span>,
     children: (
       <Card style={{ margin: '2px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <Button 
+            danger 
+            icon={<DeleteOutlined />} 
+            onClick={handleClearHistory}
+          >
+            清空历史
+          </Button>
+        </div>
         {signals.length === 0 ? (
           <Alert
             message="暂无历史信号"
@@ -257,6 +292,7 @@ const Signal = () => {
                       <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
                         置信度: {item.confidence}% | 评分: {item.score}
                         {item.price && ` | 价格: ${item.price.toFixed(2)}`}
+                        {item.targetPrice && ` | 目标: ${item.targetPrice.toFixed(2)}`}
                       </div>
                     </div>
                   </div>
@@ -290,7 +326,19 @@ const Signal = () => {
     )
   };
 
-  return <div className="signal-page"><Tabs defaultActiveKey="1" size="small" items={[realtimeSignalsTab, signalHistoryTab, signalConfigTab]} /></div>;
+  return (
+    <div className="signal-page">
+      <Tabs defaultActiveKey="1" size="small" items={[realtimeSignalsTab, signalHistoryTab, signalConfigTab]} />
+      <Modal
+        title="确认清空历史"
+        open={modalVisible}
+        onOk={confirmClearHistory}
+        onCancel={() => setModalVisible(false)}
+      >
+        <p>确定要清空所有历史信号吗？此操作不可恢复。</p>
+      </Modal>
+    </div>
+  );
 };
 
 export default Signal;

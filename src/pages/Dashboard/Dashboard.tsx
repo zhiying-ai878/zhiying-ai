@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Button, Input, Statistic, List, Tag, Space, message, Spin, Skeleton, Badge, Alert, Progress, Tooltip } from 'antd';
 import { ReloadOutlined, SearchOutlined, StarOutlined, ShareAltOutlined, AppstoreOutlined, RiseOutlined, FallOutlined, ArrowUpOutlined, ArrowDownOutlined, FireOutlined, LikeOutlined, WarningOutlined, LineChartOutlined, BellOutlined, TeamOutlined, BarChartOutlined, DollarOutlined, EyeOutlined } from '@ant-design/icons';
+import * as echarts from 'echarts';
 import { getRealtimeQuote, getStockDataSource, getMainForceData } from '../../utils/stockData';
 import { getPersonalizedRecommendation, StockRecommendation } from '../../utils/personalizedRecommendation';
 import { startMockRealTimeData } from '../../utils/realtimeData';
@@ -45,16 +46,26 @@ const Dashboard = React.memo(() => {
   ]);
 
   const [recommendations, setRecommendations] = useState<StockRecommendation[]>([]);
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const [hotspotData, setHotspotData] = useState<any[]>([]);
-  const [loadingHotspot, setLoadingHotspot] = useState(false);
+  const [loadingHotspot, setLoadingHotspot] = useState(true);
   const [latestSignals, setLatestSignals] = useState<any[]>([]);
   const [mainForceFlow, setMainForceFlow] = useState({ total: 0, buy: 0, sell: 0 });
   const [dataSourceHealth, setDataSourceHealth] = useState<any[]>([]);
+  const [loadingDataSource, setLoadingDataSource] = useState(true);
   const [riskAssessments, setRiskAssessments] = useState<any[]>([]);
   const [riskAlerts, setRiskAlerts] = useState<any[]>([]);
   const [portfolioRisk, setPortfolioRisk] = useState<any>(null);
-  const [loadingRisk, setLoadingRisk] = useState(false);
+  const [loadingRisk, setLoadingRisk] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  
+  // 图表引用
+  const mainForceChartRef = useRef<HTMLDivElement>(null);
+  const hotspotChartRef = useRef<HTMLDivElement>(null);
+  
+  // 图表实例
+  const mainForceChart = useRef<echarts.ECharts | null>(null);
+  const hotspotChart = useRef<echarts.ECharts | null>(null);
   
   const signalManager = SignalManager.getOptimizedSignalManager();
   const mainForceTracker = getMainForceTracker();
@@ -76,6 +87,7 @@ const Dashboard = React.memo(() => {
             change: result.change,
             changePercent: result.changePercent
           }));
+          // 使用批量更新，减少渲染次数
           setStocks(updatedStocks);
         }
       }
@@ -93,6 +105,7 @@ const Dashboard = React.memo(() => {
     } catch (error) {
       console.error('更新实时数据失败:', error);
       setLoadingStocks(false);
+      message.error('数据更新失败，请稍后重试');
     }
   }, [stocks.length]);
 
@@ -246,6 +259,7 @@ const Dashboard = React.memo(() => {
 
   // 加载数据源健康状态
   const loadDataSourceHealth = useCallback(() => {
+    setLoadingDataSource(true);
     try {
       const healthStatus = stockDataSource.getHealthStatus();
       let healthArray: any[] = [];
@@ -273,6 +287,8 @@ const Dashboard = React.memo(() => {
       setDataSourceHealth(healthArray);
     } catch (error) {
       console.error('加载数据源健康状态失败:', error);
+    } finally {
+      setLoadingDataSource(false);
     }
   }, [stockDataSource]);
 
@@ -325,6 +341,164 @@ const Dashboard = React.memo(() => {
     }
   }, [stocks, riskManager]);
 
+  // 初始化主力资金流向图表
+  const initMainForceChart = useCallback(() => {
+    if (mainForceChartRef.current) {
+      mainForceChart.current = echarts.init(mainForceChartRef.current);
+      updateMainForceChart();
+    }
+  }, []);
+
+  // 更新主力资金流向图表
+  const updateMainForceChart = useCallback(() => {
+    if (mainForceChart.current) {
+      const option = {
+        title: {
+          text: '主力资金流向',
+          left: 'center',
+          textStyle: {
+            fontSize: 14
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'shadow'
+          }
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: ['资金流入', '资金流出'],
+          axisLabel: {
+            fontSize: 12
+          }
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: {
+            fontSize: 12,
+            formatter: (value: number) => (value / 100000000).toFixed(2) + '亿'
+          }
+        },
+        series: [
+          {
+            name: '资金流向',
+            type: 'bar',
+            data: [
+              { value: mainForceFlow.buy, itemStyle: { color: '#cf1322' } },
+              { value: mainForceFlow.sell, itemStyle: { color: '#3f8600' } }
+            ],
+            label: {
+              show: true,
+              position: 'top',
+              formatter: (params: any) => (params.value / 100000000).toFixed(2) + '亿'
+            }
+          }
+        ]
+      };
+      mainForceChart.current.setOption(option);
+    }
+  }, [mainForceFlow]);
+
+  // 初始化市场热点图表
+  const initHotspotChart = useCallback(() => {
+    if (hotspotChartRef.current) {
+      hotspotChart.current = echarts.init(hotspotChartRef.current);
+      updateHotspotChart();
+    }
+  }, []);
+
+  // 更新市场热点图表
+  const updateHotspotChart = useCallback(() => {
+    if (hotspotChart.current && hotspotData.length > 0) {
+      const industries = hotspotData.map(item => item.industry);
+      const changes = hotspotData.map(item => item.change);
+      const popularities = hotspotData.map(item => item.popularity);
+
+      const option = {
+        title: {
+          text: '市场热点分析',
+          left: 'center',
+          textStyle: {
+            fontSize: 14
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'shadow'
+          }
+        },
+        legend: {
+          data: ['涨跌幅', '人气'],
+          bottom: 0
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '15%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: industries,
+          axisLabel: {
+            fontSize: 11,
+            rotate: 30
+          }
+        },
+        yAxis: [
+          {
+            type: 'value',
+            name: '涨跌幅(%)',
+            position: 'left',
+            axisLabel: {
+              formatter: '{value}%'
+            }
+          },
+          {
+            type: 'value',
+            name: '人气',
+            position: 'right',
+            max: 100,
+            axisLabel: {
+              formatter: '{value}'
+            }
+          }
+        ],
+        series: [
+          {
+            name: '涨跌幅',
+            type: 'bar',
+            data: changes,
+            itemStyle: {
+              color: (params: any) => params.value >= 0 ? '#cf1322' : '#3f8600'
+            }
+          },
+          {
+            name: '人气',
+            type: 'line',
+            yAxisIndex: 1,
+            data: popularities,
+            itemStyle: {
+              color: '#1890ff'
+            },
+            lineStyle: {
+              width: 2
+            }
+          }
+        ]
+      };
+      hotspotChart.current.setOption(option);
+    }
+  }, [hotspotData]);
+
   // 监控全市场股票的主力资金数据
   const monitorMarketMainForceData = useCallback(async () => {
     try {
@@ -360,24 +534,66 @@ const Dashboard = React.memo(() => {
 
   // 初始加载数据
   useEffect(() => {
-    updateRealtimeData();
-    loadRecommendations();
-    loadHotspotData();
-    loadLatestSignals();
-    loadDataSourceHealth();
-    loadRiskAssessments();
-    loadRiskAlerts();
-    analyzePortfolioRisk();
-    // 应用启动时立即获取主力资金数据并生成信号
-    updateMainForceData();
-    // 应用启动时监控全市场的买入信号
-    monitorMarketMainForceData();
+    const loadAllData = async () => {
+      try {
+        // 并行加载数据，提升加载速度
+        await Promise.all([
+          updateRealtimeData(),
+          loadRecommendations(),
+          loadHotspotData(),
+          loadLatestSignals(),
+          loadDataSourceHealth(),
+          loadRiskAssessments(),
+          loadRiskAlerts(),
+          analyzePortfolioRisk(),
+          updateMainForceData(),
+          monitorMarketMainForceData()
+        ]);
+      } catch (error) {
+        console.error('加载数据失败:', error);
+      } finally {
+        // 所有数据加载完成后设置初始加载为false
+        setInitialLoading(false);
+      }
+    };
+    
+    loadAllData();
   }, [updateRealtimeData, loadRecommendations, loadHotspotData, loadLatestSignals, loadDataSourceHealth, loadRiskAssessments, loadRiskAlerts, analyzePortfolioRisk, updateMainForceData, monitorMarketMainForceData]);
 
   // 当主力资金数据更新时，计算资金流向
   useEffect(() => {
     calculateMainForceFlow();
   }, [mainForceData, calculateMainForceFlow]);
+
+  // 初始化图表
+  useEffect(() => {
+    initMainForceChart();
+    initHotspotChart();
+
+    // 监听窗口大小变化，调整图表大小
+    const handleResize = () => {
+      mainForceChart.current?.resize();
+      hotspotChart.current?.resize();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      mainForceChart.current?.dispose();
+      hotspotChart.current?.dispose();
+    };
+  }, [initMainForceChart, initHotspotChart]);
+
+  // 当主力资金流向数据更新时，更新图表
+  useEffect(() => {
+    updateMainForceChart();
+  }, [mainForceFlow, updateMainForceChart]);
+
+  // 当市场热点数据更新时，更新图表
+  useEffect(() => {
+    updateHotspotChart();
+  }, [hotspotData, updateHotspotChart]);
 
   // 当股票列表更新时，重新计算风险评估
   useEffect(() => {
@@ -449,17 +665,18 @@ const Dashboard = React.memo(() => {
               changePercent: stock.changePercent
             };
             setStocks(updatedStocks);
+            message.success(`已更新股票：${stock.name}(${stock.code})`);
           } else {
             // 添加新股票
-            setStocks([...stocks, {
+            setStocks(prevStocks => [...prevStocks, {
               code: stock.code,
               name: stock.name,
               price: stock.price,
               change: stock.change,
               changePercent: stock.changePercent
             }]);
+            message.success(`已添加股票：${stock.name}(${stock.code})`);
           }
-          message.success(`已找到股票：${stock.name}(${stock.code})`);
         } else {
           message.error('未找到该股票');
         }
@@ -469,7 +686,7 @@ const Dashboard = React.memo(() => {
       } finally {
         setLoading(false);
       }
-    }, 500);
+    }, 300); // 减少防抖时间，提升响应速度
   }, [searchCode, stocks]);
 
   const handleSearch = useCallback(() => {
@@ -559,57 +776,63 @@ const Dashboard = React.memo(() => {
 
   return (
     <div className="dashboard" style={{ padding: 0, margin: 0 }}>
-      <Card style={{ marginBottom: '2px', borderRadius: '4px', margin: '2px' }} size="small">
-        <Row gutter={[2, 2]} align="middle">
-          <Col xs={20} sm={8} md={6}>
-            <Input
-              value={searchCode}
-              onChange={(e) => setSearchCode(e.target.value)}
-              placeholder="输入股票代码"
-              size="small"
-              prefix={<SearchOutlined />}
-              suffix={<ReloadOutlined style={{ cursor: 'pointer' }} onClick={handleManualUpdate} />}
-            />
-          </Col>
-          <Col xs={4} sm={2} md={2}>
-            <Button type="primary" size="small" icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>
-              搜索
-            </Button>
-          </Col>
-          <Col xs={24} sm={12} md={14} style={{ marginTop: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
-              <Button size="small" icon={<StarOutlined />} onClick={() => message.info('收藏功能开发中')} />
-              <Button size="small" icon={<AppstoreOutlined />} onClick={() => message.info('应用商店功能开发中')} />
-              <Button size="small" icon={<ShareAltOutlined />} onClick={() => message.info('分享功能开发中')} />
-              <Button 
-                size="small" 
-                icon={
-                  <Badge count={unreadSignalCount} showZero={false}>
-                    <BellOutlined />
-                  </Badge>
-                } 
-                onClick={() => {
-                  // 跳转到信号页面
-                  window.location.href = '/signal';
-                }}
-              />
-              <Button 
-                size="small" 
-                type={autoUpdate ? 'default' : 'primary'}
-                onClick={handleToggleAutoUpdate}
-              >
-                {autoUpdate ? '关闭' : '开启'}
-              </Button>
-            </div>
-          </Col>
-          <Col xs={24} sm={8} md={8} style={{ marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', color: '#666' }}>自动更新: {autoUpdate ? '开启' : '关闭'}</span>
-              <span style={{ fontSize: '12px', color: '#666' }}>最后更新: {formatLastUpdate()}</span>
-            </div>
-          </Col>
-        </Row>
-      </Card>
+      {initialLoading ? (
+        <div style={{ padding: '20px' }}>
+          <Skeleton active paragraph={{ rows: 10 }} />
+        </div>
+      ) : (
+        <>
+          <Card style={{ marginBottom: '2px', borderRadius: '4px', margin: '2px' }} size="small">
+            <Row gutter={[2, 2]} align="middle">
+              <Col xs={20} sm={8} md={6}>
+                <Input
+                  value={searchCode}
+                  onChange={(e) => setSearchCode(e.target.value)}
+                  placeholder="输入股票代码"
+                  size="small"
+                  prefix={<SearchOutlined />}
+                  suffix={<ReloadOutlined style={{ cursor: 'pointer' }} onClick={handleManualUpdate} />}
+                />
+              </Col>
+              <Col xs={4} sm={2} md={2}>
+                <Button type="primary" size="small" icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>
+                  搜索
+                </Button>
+              </Col>
+              <Col xs={24} sm={12} md={14} style={{ marginTop: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
+                  <Button size="small" icon={<StarOutlined />} onClick={() => message.info('收藏功能开发中')} />
+                  <Button size="small" icon={<AppstoreOutlined />} onClick={() => message.info('应用商店功能开发中')} />
+                  <Button size="small" icon={<ShareAltOutlined />} onClick={() => message.info('分享功能开发中')} />
+                  <Button 
+                    size="small" 
+                    icon={
+                      <Badge count={unreadSignalCount} showZero={false}>
+                        <BellOutlined />
+                      </Badge>
+                    } 
+                    onClick={() => {
+                      // 跳转到信号页面
+                      window.location.href = '/signal';
+                    }}
+                  />
+                  <Button 
+                    size="small" 
+                    type={autoUpdate ? 'default' : 'primary'}
+                    onClick={handleToggleAutoUpdate}
+                  >
+                    {autoUpdate ? '关闭' : '开启'}
+                  </Button>
+                </div>
+              </Col>
+              <Col xs={24} sm={8} md={8} style={{ marginTop: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '12px', color: '#666' }}>自动更新: {autoUpdate ? '开启' : '关闭'}</span>
+                  <span style={{ fontSize: '12px', color: '#666' }}>最后更新: {formatLastUpdate()}</span>
+                </div>
+              </Col>
+            </Row>
+          </Card>
 
       <Row gutter={[2, 2]} style={{ marginBottom: '2px' }}>
         {marketDataItems}
@@ -667,32 +890,35 @@ const Dashboard = React.memo(() => {
             {loadingHotspot ? (
               <Skeleton active paragraph={{ rows: 5 }} />
             ) : (
-              <List
-                dataSource={hotspotData}
-                renderItem={(item, index) => (
-                  <List.Item key={index} style={{ padding: '6px 0' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' }}>
-                          <Tag color="orange" style={{ fontSize: '12px', padding: '2px 8px' }}>{item.rank}</Tag>
-                          <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{item.industry}</span>
-                          <Tag color={item.change >= 0 ? 'red' : 'green'} style={{ fontSize: '12px', padding: '2px 8px' }}>
-                            {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
-                          </Tag>
+              <>
+                <div ref={hotspotChartRef} style={{ width: '100%', height: '200px', marginBottom: '16px' }}></div>
+                <List
+                  dataSource={hotspotData}
+                  renderItem={(item, index) => (
+                    <List.Item key={index} style={{ padding: '6px 0' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px' }}>
+                            <Tag color="orange" style={{ fontSize: '12px', padding: '2px 8px' }}>{item.rank}</Tag>
+                            <span style={{ fontWeight: 'bold', fontSize: '14px' }}>{item.industry}</span>
+                            <Tag color={item.change >= 0 ? 'red' : 'green'} style={{ fontSize: '12px', padding: '2px 8px' }}>
+                              {item.change >= 0 ? '+' : ''}{item.change.toFixed(2)}%
+                            </Tag>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#666' }}>
+                          <span>{item.stocks}只股票</span>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <FireOutlined style={{ color: '#ff4d4f', fontSize: '12px', marginRight: '2px' }} />
+                            <span>人气 {item.popularity}</span>
+                          </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#666' }}>
-                        <span>{item.stocks}只股票</span>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <FireOutlined style={{ color: '#ff4d4f', fontSize: '12px', marginRight: '2px' }} />
-                          <span>人气 {item.popularity}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </List.Item>
-                )}
-                locale={{ emptyText: '暂无热点数据' }}
-              />
+                    </List.Item>
+                  )}
+                  locale={{ emptyText: '暂无热点数据' }}
+                />
+              </>
             )}
           </Card>
         </Col>
@@ -747,6 +973,7 @@ const Dashboard = React.memo(() => {
                 prefix={mainForceFlow.total >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
               />
             </div>
+            <div ref={mainForceChartRef} style={{ width: '100%', height: '200px', marginBottom: '16px' }}></div>
             <Row gutter={[2, 2]}>
               <Col span={12}>
                 <Card size="small" style={{ margin: '2px' }}>
@@ -990,6 +1217,8 @@ const Dashboard = React.memo(() => {
           </Card>
         </Col>
       </Row>
+        </>
+      )}
     </div>
   );
 });

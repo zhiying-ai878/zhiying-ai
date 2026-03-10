@@ -93,6 +93,7 @@ export interface OptimizedSignal {
   prediction?: PredictionResult;
   isPredictiveSignal?: boolean;
   price?: number;
+  targetPrice?: number; // 目标价格
   // 综合数据字段
   newsSentiment?: 'positive' | 'negative' | 'neutral';
   newsRelevance?: number;
@@ -214,7 +215,7 @@ class OptimizedSignalManager {
     const largeFlow = mainForceData.largeOrder.netFlow;
     const totalFlow = mainForceData.totalNetFlow;
 
-    // 1. 主力资金分析 (权重: 45%)
+    // 1. 主力资金分析 (权重: 40%)
     let mainForceScore = 0;
     if (type === 'buy') {
       const mainForceAbs = Math.abs(mainForceFlow);
@@ -242,21 +243,21 @@ class OptimizedSignalManager {
         detailedReasons.push('主力资金微量净流入');
       }
 
-      // 主力资金占比
+      // 主力资金占比 - 强化权重
       if (mainForceRatio > 0.9) {
-        mainForceScore += 20;
+        mainForceScore += 30;
         detailedReasons.push('主力资金占比极高');
       } else if (mainForceRatio > 0.8) {
-        mainForceScore += 15;
+        mainForceScore += 25;
         detailedReasons.push('主力资金占比很高');
       } else if (mainForceRatio > 0.7) {
-        mainForceScore += 12;
+        mainForceScore += 20;
         detailedReasons.push('主力资金占比高');
       } else if (mainForceRatio > 0.6) {
-        mainForceScore += 10;
+        mainForceScore += 15;
         detailedReasons.push('主力资金占比适中');
       } else if (mainForceRatio > 0.5) {
-        mainForceScore += 6;
+        mainForceScore += 10;
         detailedReasons.push('主力资金占比合理');
       }
 
@@ -357,21 +358,21 @@ class OptimizedSignalManager {
         detailedReasons.push('主力资金微量净流出');
       }
 
-      // 主力资金占比
+      // 主力资金占比 - 强化权重
       if (mainForceRatio > 0.9) {
-        mainForceScore += 20;
+        mainForceScore += 30;
         detailedReasons.push('主力资金占比极高');
       } else if (mainForceRatio > 0.8) {
-        mainForceScore += 15;
+        mainForceScore += 25;
         detailedReasons.push('主力资金占比很高');
       } else if (mainForceRatio > 0.7) {
-        mainForceScore += 12;
+        mainForceScore += 20;
         detailedReasons.push('主力资金占比高');
       } else if (mainForceRatio > 0.6) {
-        mainForceScore += 10;
+        mainForceScore += 15;
         detailedReasons.push('主力资金占比适中');
       } else if (mainForceRatio > 0.5) {
-        mainForceScore += 6;
+        mainForceScore += 10;
         detailedReasons.push('主力资金占比合理');
       } else if (mainForceRatio > 0.4) {
         mainForceScore += 4;
@@ -431,7 +432,7 @@ class OptimizedSignalManager {
         detailedReasons.push('换手率适中');
       }
     }
-    score += mainForceScore * 0.45;
+    score += mainForceScore * 0.5;
 
     // 2. 主力类型分析 (权重: 5%)
     let mainForceTypeScore = 0;
@@ -774,7 +775,7 @@ class OptimizedSignalManager {
     }
     score += researchScore * 0.05;
 
-    // 7. 技术指标分析 (权重: 5%)
+    // 7. 技术指标分析 (权重: 10%)
     let technicalScore = 0;
     // 这里可以添加技术指标分析，如MACD、KDJ、RSI等
     // 暂时使用模拟数据
@@ -782,6 +783,8 @@ class OptimizedSignalManager {
     const macd = -0.5 + Math.random(); // 模拟MACD值
     const kdjK = 20 + Math.random() * 60; // 模拟KDJ K值
     const kdjD = 20 + Math.random() * 60; // 模拟KDJ D值
+    const ma5 = data.currentPrice * (0.95 + Math.random() * 0.1); // 模拟5日均线
+    const ma20 = data.currentPrice * (0.9 + Math.random() * 0.2); // 模拟20日均线
     
     if (type === 'buy') {
       if (rsi < 30) {
@@ -801,6 +804,14 @@ class OptimizedSignalManager {
         technicalScore += 4;
         detailedReasons.push('KDJ金叉');
       }
+      
+      if (data.currentPrice > ma5 && ma5 > ma20) {
+        technicalScore += 8;
+        detailedReasons.push('价格站上均线');
+      } else if (data.currentPrice > ma5) {
+        technicalScore += 4;
+        detailedReasons.push('价格站上短期均线');
+      }
     } else {
       // 卖出信号时技术指标更敏感
       if (rsi > 65) {
@@ -819,6 +830,14 @@ class OptimizedSignalManager {
       if (kdjK < kdjD) {
         technicalScore += 4;
         detailedReasons.push('KDJ死叉');
+      }
+      
+      if (data.currentPrice < ma5 && ma5 < ma20) {
+        technicalScore += 8;
+        detailedReasons.push('价格跌破均线');
+      } else if (data.currentPrice < ma5) {
+        technicalScore += 4;
+        detailedReasons.push('价格跌破短期均线');
       }
     }
     score += technicalScore * 0.05;
@@ -851,26 +870,27 @@ class OptimizedSignalManager {
     const totalAbs = Math.abs(mainForceData.totalNetFlow) || 1;
     const mainForceRatio = mainForceAbs / totalAbs;
     const superLargeRatio = Math.abs(mainForceData.superLargeOrder.netFlow) / totalAbs;
+    const currentPrice = data.currentPrice || 0;
 
     let reason = '';
     if (type === 'buy') {
-      reason = '主力资金净流入 ' + (mainForceData.mainForceNetFlow / 100000000).toFixed(2) + ' 亿元，占比' + (mainForceRatio * 100).toFixed(0) + '%';
+      reason = `买入信号：当前价格 ${currentPrice.toFixed(2)} 元，主力资金净流入 ${(mainForceData.mainForceNetFlow / 100000000).toFixed(2)} 亿元，占比${(mainForceRatio * 100).toFixed(0)}%`;
       if (superLargeRatio > 0.3) {
-        reason += '，超大单占比' + (superLargeRatio * 100).toFixed(0) + '%';
+        reason += `，超大单占比${(superLargeRatio * 100).toFixed(0)}%`;
       }
       if (mainForceData.volumeAmplification && mainForceData.volumeAmplification > 1.5) {
-        reason += '，成交量放大' + mainForceData.volumeAmplification.toFixed(1) + '倍';
+        reason += `，成交量放大${mainForceData.volumeAmplification.toFixed(1)}倍`;
       }
       if (mainForceData.turnoverRate && mainForceData.turnoverRate > 3) {
-        reason += '，换手率' + mainForceData.turnoverRate.toFixed(1) + '%';
+        reason += `，换手率${mainForceData.turnoverRate.toFixed(1)}%`;
       }
       if (this.isAuctionPeriod()) {
         reason += '【集合竞价时段】';
       }
     } else {
-      reason = '主力资金净流出 ' + (Math.abs(mainForceData.mainForceNetFlow) / 100000000).toFixed(2) + ' 亿元，占比' + (mainForceRatio * 100).toFixed(0) + '%';
+      reason = `卖出信号：当前价格 ${currentPrice.toFixed(2)} 元，主力资金净流出 ${(Math.abs(mainForceData.mainForceNetFlow) / 100000000).toFixed(2)} 亿元，占比${(mainForceRatio * 100).toFixed(0)}%`;
       if (superLargeRatio > 0.3) {
-        reason += '，超大单占比' + (superLargeRatio * 100).toFixed(0) + '%';
+        reason += `，超大单占比${(superLargeRatio * 100).toFixed(0)}%`;
       }
     }
     
@@ -896,6 +916,18 @@ class OptimizedSignalManager {
       }
     }
     
+    // 计算目标价格
+    let targetPrice: number | undefined;
+    if (type === 'buy' && data.currentPrice) {
+      // 买入信号的目标价格：基于当前价格和得分计算
+      const priceIncrease = (score / 100) * 0.2; // 最高20%的涨幅预期
+      targetPrice = data.currentPrice * (1 + priceIncrease);
+    } else if (type === 'sell' && data.currentPrice) {
+      // 卖出信号的目标价格：基于当前价格和得分计算
+      const priceDecrease = (score / 100) * 0.15; // 最高15%的跌幅预期
+      targetPrice = data.currentPrice * (1 - priceDecrease);
+    }
+    
     return {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
       stockCode: data.stockCode,
@@ -911,7 +943,8 @@ class OptimizedSignalManager {
       mainForceRatio,
       volumeAmplification: mainForceData.volumeAmplification,
       turnoverRate: mainForceData.turnoverRate,
-      price: data.currentPrice,
+      price: currentPrice,
+      targetPrice, // 添加目标价格
       // 综合数据字段
       newsSentiment: data.newsData?.[0]?.sentiment,
       newsRelevance: data.newsData?.[0]?.relevance,
@@ -1570,6 +1603,14 @@ class OptimizedSignalManager {
 
   markSignalAsNotified(signalId: string) {
     this.notifiedSignals.add(signalId);
+  }
+
+  // 清空历史提示信号数据
+  clearSignalHistory(): void {
+    this.signalHistory = [];
+    this.pendingBuySignals = [];
+    this.pendingSellSignals = [];
+    this.listeners.forEach(listener => listener([]));
   }
 
   shouldNotifySignal(signal: OptimizedSignal): boolean {

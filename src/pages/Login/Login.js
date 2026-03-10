@@ -51,7 +51,8 @@ const Login = ({ onLogin }) => {
                 username: values.username,
                 password: values.password,
                 email: values.email,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                isAuthorized: false
             };
             savedUsers.push(newUser);
             localStorage.setItem('users', JSON.stringify(savedUsers));
@@ -79,8 +80,12 @@ const Login = ({ onLogin }) => {
                                         { type: 'email', message: '请输入有效的邮箱地址' }
                                     ], children: _jsx(Input, { prefix: _jsx(MailOutlined, { className: "site-form-item-icon" }), placeholder: "\u8BF7\u8F93\u5165\u90AE\u7BB1", size: "large" }) }), _jsx(Form.Item, { name: "password", label: "\u5BC6\u7801", rules: [
                                         { required: true, message: '请输入密码' },
-                                        { min: 6, message: '密码至少6个字符' }
-                                    ], children: _jsx(Input.Password, { prefix: _jsx(LockOutlined, { className: "site-form-item-icon" }), placeholder: "\u8BF7\u8F93\u5165\u5BC6\u7801\uFF08\u81F3\u5C116\u4E2A\u5B57\u7B26\uFF09", size: "large", visibilityToggle: {
+                                        { min: 8, message: '密码至少8个字符' },
+                                        {
+                                            pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+                                            message: '密码必须包含大小写字母、数字和特殊字符'
+                                        }
+                                    ], children: _jsx(Input.Password, { prefix: _jsx(LockOutlined, { className: "site-form-item-icon" }), placeholder: "\u8BF7\u8F93\u5165\u5BC6\u7801\uFF08\u81F3\u5C118\u4E2A\u5B57\u7B26\uFF0C\u5305\u542B\u5927\u5C0F\u5199\u5B57\u6BCD\u3001\u6570\u5B57\u548C\u7279\u6B8A\u5B57\u7B26\uFF09", size: "large", visibilityToggle: {
                                             visible: registerPasswordVisible,
                                             onVisibleChange: setRegisterPasswordVisible
                                         }, iconRender: visible => (visible ? _jsx(EyeTwoTone, {}) : _jsx(EyeInvisibleOutlined, {})) }) }), _jsx(Form.Item, { name: "confirmPassword", label: "\u786E\u8BA4\u5BC6\u7801", dependencies: ['password'], rules: [

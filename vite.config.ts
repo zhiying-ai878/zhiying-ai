@@ -1,27 +1,42 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  base: './',
   plugins: [react()],
-  server: {
-    port: 3000,
-    open: true
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
   },
   build: {
     outDir: 'dist',
+    assetsDir: 'assets',
+    minify: 'terser',
     sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    cssCodeSplit: true,
+    target: 'es2015',
     rollupOptions: {
-      input: 'src/main.tsx',
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'antd-vendor': ['antd', '@ant-design/icons'],
-          'echarts-vendor': ['echarts', 'echarts-for-react'],
-          'tfjs-vendor': ['@tensorflow/tfjs'],
-          'utils-vendor': ['axios', 'dayjs', 'crypto-js']
+          'ai-models': ['@tensorflow/tfjs', 'openai'],
+          'charting': ['echarts', 'echarts-for-react'],
+          'utilities': ['axios', 'crypto-js', 'dayjs', 'i18next', 'react-i18next']
         }
       }
     }
-  }
-})
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'antd', '@ant-design/icons', 'echarts'],
+    exclude: ['@/utils/localAI', '@/utils/machineLearningModel'],
+  },
+  server: {
+    port: 3000,
+    open: true,
+    host: true,
+  },
+});

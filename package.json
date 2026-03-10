@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://zhiying-ai878.github.io/zhiying-ai",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

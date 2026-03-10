@@ -1,19 +1,31 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Layout as AntLayout, Menu, Button, Drawer, Select } from 'antd';
+import { Layout as AntLayout, Menu, Button, Drawer, Select, Avatar } from 'antd';
 import { DashboardOutlined, StockOutlined, TransactionOutlined, NotificationOutlined, ThunderboltOutlined, LineChartOutlined, MessageOutlined, RiseOutlined, PieChartOutlined, DatabaseOutlined, SettingOutlined, LogoutOutlined, MenuOutlined, BellOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 const { Header, Sider, Content } = AntLayout;
 
+interface User {
+  id: string;
+  username: string;
+  avatar: string;
+  isAuthorized: boolean;
+  authorizedBy?: string;
+  authorizedAt?: number;
+}
+
 interface LayoutProps {
   children: React.ReactNode;
   onLogout: () => void;
   language: string;
   onLanguageChange: (lang: string) => void;
+  currentUser: User;
+  onUserSwitch: () => void;
+  onManageAuthorization?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language, onLanguageChange }) => {
+const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language, onLanguageChange, currentUser, onUserSwitch, onManageAuthorization }) => {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -25,11 +37,23 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
     setIsMobile(window.innerWidth < 768);
   }, []);
 
+  // 响应式断点
+  const [isTablet, setIsTablet] = useState(false);
+
+  const checkTablet = useCallback(() => {
+    setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
+  }, []);
+
   useEffect(() => {
     checkMobile();
+    checkTablet();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [checkMobile]);
+    window.addEventListener('resize', checkTablet);
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('resize', checkTablet);
+    };
+  }, [checkMobile, checkTablet]);
 
   const menuItems = useMemo(() => [
     { key: '/', icon: <DashboardOutlined />, label: t('navigation.dashboard') },
@@ -62,14 +86,14 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
   ), [isMobile, location.pathname, handleMenuClick, menuItems]);
 
   const headerLeft = useMemo(() => {
-    return !isMobile ? (collapsed ? 80 : 150) : 0;
-  }, [isMobile, collapsed]);
+    return !isMobile ? (collapsed ? 80 : (isTablet ? 120 : 150)) : 0;
+  }, [isMobile, collapsed, isTablet]);
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>
       {!isMobile && (
         <Sider
-          width={150}
+          width={isTablet ? 120 : 150}
           collapsed={collapsed}
           style={{
             background: '#fff',
@@ -120,7 +144,7 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
                 />
               )}
             </div>
-            {!collapsed && <h1 style={{ margin: '6px 0 0 0', fontSize: '18px', fontWeight: 'bold' }}>智盈AI</h1>}
+            {!collapsed && <h1 style={{ margin: '6px 0 0 0', fontSize: isTablet ? '16px' : '18px', fontWeight: 'bold' }}>智盈AI</h1>}
           </div>
           
           {/* 菜单区域 - 可滚动 */}
@@ -148,10 +172,24 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
       )}
 
       {isMobile && (
-        <Drawer title="菜单" placement="left" onClose={() => setMobileMenuOpen(false)} open={mobileMenuOpen} width={200}>
-          {menu}
-          <div style={{ padding: '12px', marginTop: '20px' }}>
-            <Button type="primary" danger block icon={<LogoutOutlined />} onClick={onLogout} size="small">
+        <Drawer 
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <RiseOutlined style={{ color: '#ff0000', fontSize: '20px', marginRight: '8px' }} />
+              <span>智盈AI</span>
+            </div>
+          } 
+          placement="left" 
+          onClose={() => setMobileMenuOpen(false)} 
+          open={mobileMenuOpen} 
+          width={240}
+          bodyStyle={{ padding: 0 }}
+        >
+          <div style={{ padding: '16px 0' }}>
+            {menu}
+          </div>
+          <div style={{ padding: '16px', borderTop: '1px solid #f0f0f0' }}>
+            <Button type="primary" danger block icon={<LogoutOutlined />} onClick={onLogout}>
               {t('navigation.logout')}
             </Button>
           </div>
@@ -162,13 +200,13 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
         <Header
           style={{
             background: 'linear-gradient(135deg, #ff0000 0%, #cc0000 100%)',
-            padding: '0',
+            padding: '0 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            height: '48px',
-            lineHeight: '48px',
+            height: isMobile ? '56px' : '48px',
+            lineHeight: isMobile ? '56px' : '48px',
             margin: 0,
             position: 'fixed',
             top: 0,
@@ -182,36 +220,51 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
             {isMobile && (
               <Button
                 type="text"
-                icon={<MenuOutlined style={{ color: 'white', fontSize: '18px' }} />}
+                icon={<MenuOutlined style={{ color: 'white', fontSize: '20px' }} />}
                 onClick={() => setMobileMenuOpen(true)}
                 style={{ marginRight: '12px', padding: '4px' }}
               />
             )}
-            <h1 style={{ margin: 0, color: 'white', fontSize: isMobile ? '16px' : '20px', fontWeight: 'bold' }}>
+            <h1 style={{ margin: 0, color: 'white', fontSize: isMobile ? '18px' : isTablet ? '16px' : '20px', fontWeight: 'bold' }}>
               智能投资决策平台
             </h1>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
             <Select
               value={language}
               onChange={onLanguageChange}
-              style={{ width: 100, marginRight: '16px', color: 'white' }}
+              style={{ width: 100, marginRight: '12px', color: 'white' }}
               options={[
                 { value: 'zh-CN', label: '中文' },
                 { value: 'en-US', label: 'English' },
               ]}
               dropdownStyle={{ minWidth: 100 }}
+              size={isMobile ? 'small' : 'middle'}
             />
-            <BellOutlined style={{ color: 'white', fontSize: '18px', marginRight: '16px' }} />
+            <BellOutlined style={{ color: 'white', fontSize: isMobile ? '16px' : '18px', marginRight: '12px' }} />
+            {currentUser.username === 'admin' && onManageAuthorization && (
+              <Button 
+                type="text" 
+                style={{ marginRight: '12px', color: 'white' }}
+                onClick={onManageAuthorization}
+                size={isMobile ? 'small' : 'middle'}
+              >
+                {isMobile ? '授权' : '授权管理'}
+              </Button>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', cursor: 'pointer' }} onClick={onUserSwitch}>
+              <Avatar src={currentUser.avatar} style={{ marginRight: '8px', backgroundColor: currentUser.isAuthorized ? '#52c41a' : '#d9d9d9' }} size={isMobile ? 'small' : 'default'} />
+              {!isMobile && <span style={{ color: 'white', fontSize: '14px' }}>{currentUser.username}</span>}
+            </div>
           </div>
         </Header>
         <Content
           style={{
             margin: '0',
-            padding: '10px',
+            padding: isMobile ? '8px' : '10px',
             background: '#f5f5f5',
             minHeight: '100vh',
-            paddingTop: '68px',
+            paddingTop: isMobile ? '76px' : '68px',
             overflow: 'auto',
           }}
         >
