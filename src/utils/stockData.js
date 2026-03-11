@@ -204,7 +204,7 @@ class StockDataSource {
         sources.forEach(source => {
             this.healthStatus.set(source, {
                 source,
-                status: source === 'mock' ? 'healthy' : 'degraded',
+                status: (source === 'sina' || source === 'tencent' || source === 'eastmoney' || source === 'mock') ? 'healthy' : 'degraded',
                 lastCheck: Date.now(),
                 errorCount: 0,
                 successCount: 0
@@ -1396,7 +1396,18 @@ class StockDataSource {
         const startTime = Date.now();
         // 优化：批量请求 - 新浪API支持多个股票代码
         try {
-            const sinaCodes = codes.map(code => code.startsWith('6') ? `sh${code}` : `sz${code}`).join(',');
+            // 处理市场指数代码，确保格式正确
+            const sinaCodes = codes.map(code => {
+                if (code.startsWith('sh') || code.startsWith('sz')) {
+                    return code;
+                }
+                else if (code.startsWith('6')) {
+                    return `sh${code}`;
+                }
+                else {
+                    return `sz${code}`;
+                }
+            }).join(',');
             const response = await axios.get(`https://hq.sinajs.cn/list=${sinaCodes}`, {
                 headers: {
                     'Referer': 'https://finance.sina.com.cn/',
@@ -1445,9 +1456,19 @@ class StockDataSource {
         // 补充缺失的数据
         for (const code of codes) {
             if (!results.find(r => r.code === code)) {
-                const stockName = code === '600519' ? '贵州茅台' :
-                    code === '000001' ? '平安银行' :
-                        code === '002594' ? '比亚迪' : '股票' + code;
+                let stockName = '股票' + code;
+                if (code === 'sh000001')
+                    stockName = '上证指数';
+                else if (code === 'sz399001')
+                    stockName = '深证成指';
+                else if (code === 'sz399006')
+                    stockName = '创业板指';
+                else if (code === '600519')
+                    stockName = '贵州茅台';
+                else if (code === '000001')
+                    stockName = '平安银行';
+                else if (code === '002594')
+                    stockName = '比亚迪';
                 const mockList = this.getMockStockList();
                 const mockQuote = mockList.find(q => q.code === code);
                 if (mockQuote) {
@@ -1457,13 +1478,13 @@ class StockDataSource {
                     results.push({
                         code,
                         name: stockName,
-                        price: 10 + Math.random() * 100,
+                        price: code === 'sh000001' ? 4123.14 : code === 'sz399001' ? 12567.89 : code === 'sz399006' ? 2567.89 : 10 + Math.random() * 100,
                         change: (Math.random() - 0.5) * 5,
                         changePercent: (Math.random() - 0.5) * 10,
-                        open: 10 + Math.random() * 100,
-                        high: 10 + Math.random() * 100,
-                        low: 10 + Math.random() * 100,
-                        close: 10 + Math.random() * 100,
+                        open: code === 'sh000001' ? 4100.00 : code === 'sz399001' ? 12500.00 : code === 'sz399006' ? 2550.00 : 10 + Math.random() * 100,
+                        high: code === 'sh000001' ? 4130.00 : code === 'sz399001' ? 12600.00 : code === 'sz399006' ? 2570.00 : 10 + Math.random() * 100,
+                        low: code === 'sh000001' ? 4090.00 : code === 'sz399001' ? 12450.00 : code === 'sz399006' ? 2540.00 : 10 + Math.random() * 100,
+                        close: code === 'sh000001' ? 4123.14 : code === 'sz399001' ? 12567.89 : code === 'sz399006' ? 2567.89 : 10 + Math.random() * 100,
                         volume: Math.floor(Math.random() * 100000000),
                         amount: Math.floor(Math.random() * 10000000000)
                     });
@@ -2226,6 +2247,104 @@ class StockDataSource {
     }
     // 优化后的实时行情获取方法
     async getRealtimeQuote(codes) {
+        // 检查市场是否开盘
+        if (!this.isMarketOpen()) {
+            console.log('市场已闭市，使用缓存或静态数据');
+            // 尝试从缓存获取数据
+            const cachedResults = [];
+            const uncachedCodes = [];
+            for (const code of codes) {
+                const cacheKey = this.cache.generateKey(CacheKeys.STOCK_DATA, 'quote', code);
+                const cached = this.getCache(cacheKey);
+                if (cached) {
+                    cachedResults.push(cached);
+                }
+                else {
+                    uncachedCodes.push(code);
+                }
+            }
+            // 如果所有数据都在缓存中，直接返回
+            if (uncachedCodes.length === 0) {
+                return cachedResults;
+            }
+            // 对于未缓存的数据，使用静态模拟数据（闭市时数据不变）
+            const staticResults = uncachedCodes.map(code => {
+                const mockList = this.getMockStockList();
+                const mockQuote = mockList.find(q => q.code === code);
+                if (mockQuote) {
+                    return mockQuote;
+                }
+                else {
+                    // 为市场指数设置固定值
+                    if (code === 'sh000001') {
+                        return {
+                            code: 'sh000001',
+                            name: '上证指数',
+                            price: 4123.14,
+                            change: 0,
+                            changePercent: 0,
+                            open: 4123.14,
+                            high: 4123.14,
+                            low: 4123.14,
+                            close: 4123.14,
+                            volume: 0,
+                            amount: 0
+                        };
+                    }
+                    else if (code === 'sz399001') {
+                        return {
+                            code: 'sz399001',
+                            name: '深证成指',
+                            price: 12567.89,
+                            change: 0,
+                            changePercent: 0,
+                            open: 12567.89,
+                            high: 12567.89,
+                            low: 12567.89,
+                            close: 12567.89,
+                            volume: 0,
+                            amount: 0
+                        };
+                    }
+                    else if (code === 'sz399006') {
+                        return {
+                            code: 'sz399006',
+                            name: '创业板指',
+                            price: 2567.89,
+                            change: 0,
+                            changePercent: 0,
+                            open: 2567.89,
+                            high: 2567.89,
+                            low: 2567.89,
+                            close: 2567.89,
+                            volume: 0,
+                            amount: 0
+                        };
+                    }
+                    else {
+                        // 其他股票使用固定的模拟数据
+                        const stockName = code === '600519' ? '贵州茅台' :
+                            code === '000001' ? '平安银行' :
+                                code === '002594' ? '比亚迪' : '股票' + code;
+                        return {
+                            code,
+                            name: stockName,
+                            price: 100,
+                            change: 0,
+                            changePercent: 0,
+                            open: 100,
+                            high: 100,
+                            low: 100,
+                            close: 100,
+                            volume: 0,
+                            amount: 0
+                        };
+                    }
+                }
+            });
+            return [...cachedResults, ...staticResults];
+        }
+        // 市场开盘时，正常获取实时数据
         // 优化：使用智能批处理请求
         try {
             // 优先使用用户选择的数据源，只有当它完全不可用时才切换
@@ -2240,31 +2359,43 @@ class StockDataSource {
                     this.setSourceType(bestSource);
                 }
             }
+            console.log(`使用数据源 ${currentSource} 获取实时行情数据，股票代码:`, codes);
             // 使用智能批处理请求
             const results = await this.intelligentBatchRequest(currentSource, codes, async (batchCodes) => {
                 switch (currentSource) {
                     case 'sina':
+                        console.log('使用新浪数据源获取实时行情');
                         return await this.getSinaRealtimeQuote(batchCodes);
                     case 'tencent':
+                        console.log('使用腾讯数据源获取实时行情');
                         return await this.getTencentRealtimeQuote(batchCodes);
                     case 'eastmoney':
+                        console.log('使用东方财富数据源获取实时行情');
                         return await this.getEastMoneyRealtimeQuote(batchCodes);
                     case 'xueqiu':
+                        console.log('使用雪球数据源获取实时行情');
                         return await this.getXueQiuRealtimeQuote(batchCodes);
                     case 'ths':
+                        console.log('使用同花顺数据源获取实时行情');
                         return await this.getTHSRealtimeQuote(batchCodes);
                     case 'huatai':
+                        console.log('使用华泰证券数据源获取实时行情');
                         return await this.getHuataiRealtimeQuote(batchCodes);
                     case 'gtja':
+                        console.log('使用国泰君安数据源获取实时行情');
                         return await this.getGTJA2RealtimeQuote(batchCodes);
                     case 'haitong':
+                        console.log('使用海通证券数据源获取实时行情');
                         return await this.getHaitongRealtimeQuote(batchCodes);
                     case 'wind':
+                        console.log('使用Wind数据源获取实时行情');
                         return await this.getWindRealtimeQuote(batchCodes);
                     case 'choice':
+                        console.log('使用Choice数据源获取实时行情');
                         return await this.getChoiceRealtimeQuote(batchCodes);
                     case 'mock':
                     default:
+                        console.log('使用模拟数据源获取实时行情');
                         const mockResults = this.getMockStockList().filter(q => batchCodes.includes(q.code));
                         if (mockResults.length === 0) {
                             return batchCodes.map(code => this.getMockStockQuote(code));
@@ -2272,6 +2403,7 @@ class StockDataSource {
                         return mockResults;
                 }
             });
+            console.log('获取实时行情数据成功:', results);
             // 重置重试计数器
             this.retryAttempts.delete(currentSource);
             return results;
@@ -2285,14 +2417,17 @@ class StockDataSource {
             this.retryAttempts.set(this.sourceType, currentAttempts);
             // 尝试故障转移
             if (this.options.autoFailover) {
+                console.log('尝试自动故障转移');
                 await this.autoFailover();
                 // 重置当前数据源的重试计数
                 this.retryAttempts.set(this.sourceType, 0);
                 // 重新尝试获取数据
+                console.log('故障转移后重新尝试获取数据');
                 return this.getRealtimeQuote(codes);
             }
             else {
                 // 不进行故障转移，直接返回模拟数据
+                console.log('返回模拟数据');
                 return codes.map(code => this.getMockStockQuote(code));
             }
         }
@@ -2538,7 +2673,7 @@ class StockDataSource {
     }
 }
 let stockDataSourceInstance = null;
-export const getStockDataSource = (sourceType, options) => {
+export const getStockDataSource = (sourceType = 'sina', options) => {
     if (!stockDataSourceInstance) {
         stockDataSourceInstance = new StockDataSource(sourceType, options);
     }

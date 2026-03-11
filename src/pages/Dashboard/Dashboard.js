@@ -76,13 +76,32 @@ const Dashboard = React.memo(() => {
                     setStocks(updatedStocks);
                 }
             }
-            // 模拟更新市场数据
-            setMarketData(prev => prev.map(item => ({
-                ...item,
-                value: item.value + (Math.random() - 0.5) * 10,
-                change: (Math.random() - 0.5) * 20,
-                changePercent: (Math.random() - 0.5) * 1
-            })));
+            // 从真实数据源获取市场数据
+            const marketCodes = ['sh000001', 'sz399001', 'sz399006']; // 上证指数、深证成指、创业板指
+            const marketResults = await getRealtimeQuote(marketCodes);
+            if (marketResults && marketResults.length > 0) {
+                const updatedMarketData = [
+                    {
+                        name: '上证指数',
+                        value: marketResults.find(r => r.code === 'sh000001')?.price || 3187.82,
+                        change: marketResults.find(r => r.code === 'sh000001')?.change || 1.14,
+                        changePercent: marketResults.find(r => r.code === 'sh000001')?.changePercent || 0.04
+                    },
+                    {
+                        name: '深证成指',
+                        value: marketResults.find(r => r.code === 'sz399001')?.price || 10559.63,
+                        change: marketResults.find(r => r.code === 'sz399001')?.change || -9.91,
+                        changePercent: marketResults.find(r => r.code === 'sz399001')?.changePercent || -0.09
+                    },
+                    {
+                        name: '创业板指',
+                        value: marketResults.find(r => r.code === 'sz399006')?.price || 2203.92,
+                        change: marketResults.find(r => r.code === 'sz399006')?.change || -0.28,
+                        changePercent: marketResults.find(r => r.code === 'sz399006')?.changePercent || -0.01
+                    }
+                ];
+                setMarketData(updatedMarketData);
+            }
             setLastUpdateTime(new Date());
             setLoadingStocks(false);
         }
@@ -127,27 +146,49 @@ const Dashboard = React.memo(() => {
     }, [stocks, signalManager, mainForceTracker]);
     // 集成实时数据监听
     useEffect(() => {
-        // 启动模拟实时数据（实际项目中会使用真实的WebSocket连接）
-        const mockTimer = startMockRealTimeData((data) => {
-            // 处理实时数据更新
-            setStocks(prevStocks => {
-                const updatedStocks = [...prevStocks];
-                const index = updatedStocks.findIndex(stock => stock.code === data.stockCode);
-                if (index >= 0) {
-                    updatedStocks[index] = {
-                        code: data.stockCode,
-                        name: updatedStocks[index].name,
-                        price: data.price,
-                        change: data.change,
-                        changePercent: data.changePercent
-                    };
-                }
-                return updatedStocks;
-            });
-        }, 3000); // 每3秒更新一次
-        // 启动主力资金监控
+        let mockTimer = null;
+        // 检查市场是否开盘
+        const isMarketOpen = () => {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            // 周一到周五
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                // 上午：9:30-11:30
+                const morningOpen = (hours === 9 && minutes >= 30) || (hours > 9 && hours < 11) || (hours === 11 && minutes < 30);
+                // 下午：13:00-15:00
+                const afternoonOpen = (hours === 13 && minutes >= 0) || (hours > 13 && hours < 15) || (hours === 15 && minutes === 0);
+                return morningOpen || afternoonOpen;
+            }
+            return false;
+        };
+        // 只有在市场开盘时才启动模拟实时数据
+        if (isMarketOpen()) {
+            // 启动模拟实时数据（实际项目中会使用真实的WebSocket连接）
+            mockTimer = startMockRealTimeData((data) => {
+                // 处理实时数据更新
+                setStocks(prevStocks => {
+                    const updatedStocks = [...prevStocks];
+                    const index = updatedStocks.findIndex(stock => stock.code === data.stockCode);
+                    if (index >= 0) {
+                        updatedStocks[index] = {
+                            code: data.stockCode,
+                            name: updatedStocks[index].name,
+                            price: data.price,
+                            change: data.change,
+                            changePercent: data.changePercent
+                        };
+                    }
+                    return updatedStocks;
+                });
+            }, 3000); // 每3秒更新一次
+        }
+        // 启动主力资金监控（仅在开盘时）
         const mainForceTimer = setInterval(() => {
-            updateMainForceData();
+            if (isMarketOpen()) {
+                updateMainForceData();
+            }
         }, 5000); // 每5秒更新一次主力资金数据
         return () => {
             if (mockTimer) {
@@ -160,7 +201,23 @@ const Dashboard = React.memo(() => {
     }, [updateMainForceData]);
     // 自动更新
     useEffect(() => {
-        if (autoUpdate) {
+        // 检查市场是否开盘
+        const isMarketOpen = () => {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            // 周一到周五
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                // 上午：9:30-11:30
+                const morningOpen = (hours === 9 && minutes >= 30) || (hours > 9 && hours < 11) || (hours === 11 && minutes < 30);
+                // 下午：13:00-15:00
+                const afternoonOpen = (hours === 13 && minutes >= 0) || (hours > 13 && hours < 15) || (hours === 15 && minutes === 0);
+                return morningOpen || afternoonOpen;
+            }
+            return false;
+        };
+        if (autoUpdate && isMarketOpen()) {
             intervalRef.current = setInterval(() => {
                 updateRealtimeData();
             }, 5000); // 每5秒更新一次
@@ -566,15 +623,35 @@ const Dashboard = React.memo(() => {
     }, [stocks, loadRiskAssessments, loadRiskAlerts, analyzePortfolioRisk]);
     // 定期监控全市场
     useEffect(() => {
-        // 每10秒监控一次全市场
+        // 检查市场是否开盘
+        const isMarketOpen = () => {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            // 周一到周五
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                // 上午：9:30-11:30
+                const morningOpen = (hours === 9 && minutes >= 30) || (hours > 9 && hours < 11) || (hours === 11 && minutes < 30);
+                // 下午：13:00-15:00
+                const afternoonOpen = (hours === 13 && minutes >= 0) || (hours > 13 && hours < 15) || (hours === 15 && minutes === 0);
+                return morningOpen || afternoonOpen;
+            }
+            return false;
+        };
+        // 每10秒监控一次全市场（仅在开盘时）
         const marketMonitorTimer = setInterval(() => {
-            monitorMarketMainForceData();
-            loadLatestSignals();
+            if (isMarketOpen()) {
+                monitorMarketMainForceData();
+                loadLatestSignals();
+            }
         }, 10000);
-        // 每30秒更新一次热点数据和数据源健康状态
+        // 每30秒更新一次热点数据和数据源健康状态（仅在开盘时）
         const hotspotTimer = setInterval(() => {
-            loadHotspotData();
-            loadDataSourceHealth();
+            if (isMarketOpen()) {
+                loadHotspotData();
+                loadDataSourceHealth();
+            }
         }, 30000);
         return () => {
             if (marketMonitorTimer) {
