@@ -1,0 +1,124 @@
+// 存储工具函数
+// 加密函数
+export const encryptData = (data) => {
+    // 这里使用简单的Base64编码作为示例，实际应用中应该使用更安全的加密方法
+    return btoa(unescape(encodeURIComponent(data)));
+};
+// 解密函数
+export const decryptData = (encryptedData) => {
+    return decodeURIComponent(escape(atob(encryptedData)));
+};
+// 存储数据到本地存储
+export const setStorageItem = (key, value) => {
+    try {
+        const encryptedValue = encryptData(JSON.stringify(value));
+        localStorage.setItem(key, encryptedValue);
+        return true;
+    }
+    catch (error) {
+        console.error('存储数据失败:', error);
+        return false;
+    }
+};
+// 从本地存储获取数据
+export const getStorageItem = (key) => {
+    try {
+        const encryptedValue = localStorage.getItem(key);
+        if (!encryptedValue)
+            return null;
+        const decryptedValue = decryptData(encryptedValue);
+        return JSON.parse(decryptedValue);
+    }
+    catch (error) {
+        console.error('获取数据失败:', error);
+        // 如果解密失败，清除存储的信息
+        localStorage.removeItem(key);
+        return null;
+    }
+};
+// 从本地存储删除数据
+export const removeStorageItem = (key) => {
+    try {
+        localStorage.removeItem(key);
+        return true;
+    }
+    catch (error) {
+        console.error('删除数据失败:', error);
+        return false;
+    }
+};
+// 清除所有本地存储数据
+export const clearStorage = () => {
+    try {
+        localStorage.clear();
+        return true;
+    }
+    catch (error) {
+        console.error('清除存储失败:', error);
+        return false;
+    }
+};
+// 存储用户信息
+export const saveUserInfo = (userInfo) => {
+    return setStorageItem('userInfo', userInfo);
+};
+// 获取用户信息
+export const getUserInfo = () => {
+    const userInfo = getStorageItem('userInfo');
+    // 检查token是否过期
+    if (userInfo && userInfo.expiresAt < Date.now()) {
+        removeStorageItem('userInfo');
+        return null;
+    }
+    return userInfo;
+};
+// 存储交易设置
+export const saveTradeSettings = (settings) => {
+    return setStorageItem('tradeSettings', settings);
+};
+// 获取交易设置
+export const getTradeSettings = () => {
+    return getStorageItem('tradeSettings');
+};
+// 存储AI策略设置
+export const saveStrategySettings = (settings) => {
+    return setStorageItem('strategySettings', settings);
+};
+// 获取AI策略设置
+export const getStrategySettings = () => {
+    return getStorageItem('strategySettings');
+};
+// 存储交易历史
+export const saveTradeHistory = (trades) => {
+    return setStorageItem('tradeHistory', trades);
+};
+// 获取交易历史
+export const getTradeHistory = () => {
+    const history = getStorageItem('tradeHistory');
+    return history || [];
+};
+// 存储自选股票
+export const saveWatchlist = (stocks) => {
+    return setStorageItem('watchlist', stocks);
+};
+// 获取自选股票
+export const getWatchlist = () => {
+    const watchlist = getStorageItem('watchlist');
+    return watchlist || [];
+};
+// 添加股票到自选
+export const addToWatchlist = (stock) => {
+    const watchlist = getWatchlist();
+    const exists = watchlist.some(item => item.code === stock.code);
+    if (!exists) {
+        watchlist.push(stock);
+        return saveWatchlist(watchlist);
+    }
+    return true;
+};
+// 从自选中删除股票
+export const removeFromWatchlist = (code) => {
+    const watchlist = getWatchlist();
+    const filtered = watchlist.filter(item => item.code !== code);
+    return saveWatchlist(filtered);
+};

@@ -1,0 +1,29 @@
+{
+  "framework": "vite",
+  "build": {
+    "command": "npm run build",
+    "outputDirectory": "dist"
+  },
+  "rewrites": [
+    {
+      "source": "/api/sina/(.*)",
+      "destination": "https://hq.sinajs.cn/$1"
+    },
+    {
+      "source": "/api/eastmoney/(.*)",
+      "destination": "https://push2.eastmoney.com/$1"
+    },
+    {
+      "source": "/api/tencent/(.*)",
+      "destination": "https://qt.gtimg.cn/$1"
+    },
+    {
+      "source": "/api/xueqiu/(.*)",
+      "destination": "https://xueqiu.com/$1"
+    },
+    {
+      "source": "/api/ths/(.*)",
+      "destination": "https://q.10jqka.com.cn/$1"
+    }
+  ]
+}
