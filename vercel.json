@@ -1,5 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "react"
+  "framework": "vite",
+  "build": {
+    "command": "npm run build",
+    "outputDirectory": "dist"
+  }
 }
