@@ -113,7 +113,7 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
           {/* 顶格行 - 固定显示 */}
           <div
             style={{
-              padding: '12px 8px',
+              padding: '16px 12px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -125,13 +125,13 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
               width: '100%'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
               {!collapsed && (
                 <Button
                   type="text"
                   icon={<LeftOutlined style={{ color: 'white' }} />}
                   onClick={() => setCollapsed(true)}
-                  style={{ padding: '4px', position: 'absolute', left: '8px' }}
+                  style={{ padding: '8px' }}
                 />
               )}
               <RiseOutlined style={{ fontSize: '32px', marginBottom: collapsed ? '0' : '6px' }} />
@@ -140,11 +140,11 @@ const Layout: React.FC<LayoutProps> = React.memo(({ children, onLogout, language
                   type="text"
                   icon={<RightOutlined style={{ color: 'white' }} />}
                   onClick={() => setCollapsed(false)}
-                  style={{ padding: '4px', position: 'absolute', right: '8px' }}
+                  style={{ padding: '8px' }}
                 />
               )}
             </div>
-            {!collapsed && <h1 style={{ margin: '6px 0 0 0', fontSize: isTablet ? '16px' : '18px', fontWeight: 'bold' }}>智盈AI</h1>}
+            {!collapsed && <h1 style={{ margin: '8px 0 0 0', fontSize: isTablet ? '16px' : '18px', fontWeight: 'bold' }}>智盈AI</h1>}
           </div>
           
           {/* 菜单区域 - 可滚动 */}

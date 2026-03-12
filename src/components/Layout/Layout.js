@@ -66,7 +66,7 @@ const Layout = React.memo(({ children, onLogout, language, onLanguageChange, cur
                     msOverflowStyle: 'none',
                     WebkitOverflowScrolling: 'touch'
                 }, trigger: null, children: [_jsxs("div", { style: {
-                            padding: '12px 8px',
+                            padding: '16px 12px',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -76,7 +76,7 @@ const Layout = React.memo(({ children, onLogout, language, onLanguageChange, cur
                             top: 0,
                             zIndex: 100,
                             width: '100%'
-                        }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }, children: [!collapsed && (_jsx(Button, { type: "text", icon: _jsx(LeftOutlined, { style: { color: 'white' } }), onClick: () => setCollapsed(true), style: { padding: '4px', position: 'absolute', left: '8px' } })), _jsx(RiseOutlined, { style: { fontSize: '32px', marginBottom: collapsed ? '0' : '6px' } }), collapsed && (_jsx(Button, { type: "text", icon: _jsx(RightOutlined, { style: { color: 'white' } }), onClick: () => setCollapsed(false), style: { padding: '4px', position: 'absolute', right: '8px' } }))] }), !collapsed && _jsx("h1", { style: { margin: '6px 0 0 0', fontSize: isTablet ? '16px' : '18px', fontWeight: 'bold' }, children: "\u667A\u76C8AI" })] }), _jsx("div", { style: {
+                        }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }, children: [!collapsed && (_jsx(Button, { type: "text", icon: _jsx(LeftOutlined, { style: { color: 'white' } }), onClick: () => setCollapsed(true), style: { padding: '8px' } })), _jsx(RiseOutlined, { style: { fontSize: '32px', marginBottom: collapsed ? '0' : '6px' } }), collapsed && (_jsx(Button, { type: "text", icon: _jsx(RightOutlined, { style: { color: 'white' } }), onClick: () => setCollapsed(false), style: { padding: '8px' } }))] }), !collapsed && _jsx("h1", { style: { margin: '8px 0 0 0', fontSize: isTablet ? '16px' : '18px', fontWeight: 'bold' }, children: "\u667A\u76C8AI" })] }), _jsx("div", { style: {
                             padding: '8px 0',
                             minHeight: 'calc(100% - 160px)'
                         }, children: menu }), _jsx("div", { style: {
