@@ -3,9 +3,8 @@ services:
     name: zhiying-ai
     env: static
     buildCommand: npm run build
+    publishPath: dist
     staticPublishPath: dist
-    pullRequestPreviewsEnabled: true
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0

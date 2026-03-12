@@ -43,6 +43,7 @@ const Dashboard = React.memo(() => {
     { name: '上证指数', value: 3152.67, change: 12.34, changePercent: 0.39 },
     { name: '深证成指', value: 10567.89, change: -23.45, changePercent: -0.22 },
     { name: '创业板指', value: 2189.56, change: 8.76, changePercent: 0.40 },
+    { name: '科创板指', value: 923.45, change: 5.67, changePercent: 0.62 },
   ]);
 
   const [recommendations, setRecommendations] = useState<StockRecommendation[]>([]);
@@ -93,9 +94,16 @@ const Dashboard = React.memo(() => {
       }
       
       // 从真实数据源获取市场数据
-      const marketCodes = ['sh000001', 'sz399001', 'sz399006']; // 上证指数、深证成指、创业板指
+      const marketCodes = ['sh000001', 'sz399001', 'sz399006', 'sh000688']; // 上证指数、深证成指、创业板指、科创板指
+      console.log('获取市场指数数据，代码:', marketCodes);
       const marketResults = await getRealtimeQuote(marketCodes);
+      console.log('市场指数数据结果:', marketResults);
+      
       if (marketResults && marketResults.length > 0) {
+        // 检查是否获取到了真实数据
+        const hasRealData = marketResults.some(r => r.price > 0 && r.volume > 0);
+        console.log(`是否获取到真实数据: ${hasRealData}`);
+        
         const updatedMarketData = [
           {
             name: '上证指数',
@@ -114,6 +122,12 @@ const Dashboard = React.memo(() => {
             value: marketResults.find(r => r.code === 'sz399006')?.price || 2203.92,
             change: marketResults.find(r => r.code === 'sz399006')?.change || -0.28,
             changePercent: marketResults.find(r => r.code === 'sz399006')?.changePercent || -0.01
+          },
+          {
+            name: '科创板指',
+            value: marketResults.find(r => r.code === 'sh000688')?.price || 923.45,
+            change: marketResults.find(r => r.code === 'sh000688')?.change || 5.67,
+            changePercent: marketResults.find(r => r.code === 'sh000688')?.changePercent || 0.62
           }
         ];
         setMarketData(updatedMarketData);
@@ -165,8 +179,6 @@ const Dashboard = React.memo(() => {
 
   // 集成实时数据监听
   useEffect(() => {
-    let mockTimer: number | null = null;
-    
     // 检查市场是否开盘
     const isMarketOpen = () => {
       const now = new Date();
@@ -185,40 +197,19 @@ const Dashboard = React.memo(() => {
       }
       return false;
     };
-    
-    // 只有在市场开盘时才启动模拟实时数据
-    if (isMarketOpen()) {
-      // 启动模拟实时数据（实际项目中会使用真实的WebSocket连接）
-      mockTimer = startMockRealTimeData((data: any) => {
-        // 处理实时数据更新
-        setStocks(prevStocks => {
-          const updatedStocks = [...prevStocks];
-          const index = updatedStocks.findIndex(stock => stock.code === data.stockCode);
-          if (index >= 0) {
-            updatedStocks[index] = {
-              code: data.stockCode,
-              name: updatedStocks[index].name,
-              price: data.price,
-              change: data.change,
-              changePercent: data.changePercent
-            };
-          }
-          return updatedStocks;
-        });
-      }, 3000); // 每3秒更新一次
-    }
 
-    // 启动主力资金监控（仅在开盘时）
+    // 启动主力资金监控
     const mainForceTimer = setInterval(() => {
-      if (isMarketOpen()) {
+      const marketOpen = isMarketOpen();
+      if (marketOpen) {
+        updateMainForceData();
+      } else {
+        // 闭市时也更新，获取最新的收盘数据
         updateMainForceData();
       }
-    }, 5000); // 每5秒更新一次主力资金数据
+    }, 10000); // 每10秒更新一次主力资金数据
 
     return () => {
-      if (mockTimer) {
-        clearInterval(mockTimer);
-      }
       if (mainForceTimer) {
         clearInterval(mainForceTimer);
       }
@@ -246,15 +237,21 @@ const Dashboard = React.memo(() => {
       return false;
     };
     
-    if (autoUpdate && isMarketOpen()) {
+    if (autoUpdate) {
+      const marketOpen = isMarketOpen();
+      const interval = marketOpen ? 5000 : 30000; // 开盘时5秒更新一次，闭市时30秒更新一次
+      
       intervalRef.current = setInterval(() => {
         updateRealtimeData();
-      }, 5000); // 每5秒更新一次
+      }, interval);
+      
+      console.log(`自动更新已${marketOpen ? '开启（开盘）' : '开启（闭市）'}，更新间隔：${interval}ms`);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      console.log('自动更新已关闭');
     }
 
     return () => {
@@ -689,21 +686,31 @@ const Dashboard = React.memo(() => {
       return false;
     };
 
-    // 每10秒监控一次全市场（仅在开盘时）
+    // 每15秒监控一次全市场
     const marketMonitorTimer = setInterval(() => {
-      if (isMarketOpen()) {
+      const marketOpen = isMarketOpen();
+      if (marketOpen) {
+        monitorMarketMainForceData();
+        loadLatestSignals();
+      } else {
+        // 闭市时也更新，获取最新的收盘数据
         monitorMarketMainForceData();
         loadLatestSignals();
       }
-    }, 10000);
+    }, 15000);
 
-    // 每30秒更新一次热点数据和数据源健康状态（仅在开盘时）
+    // 每45秒更新一次热点数据和数据源健康状态
     const hotspotTimer = setInterval(() => {
-      if (isMarketOpen()) {
+      const marketOpen = isMarketOpen();
+      if (marketOpen) {
+        loadHotspotData();
+        loadDataSourceHealth();
+      } else {
+        // 闭市时也更新
         loadHotspotData();
         loadDataSourceHealth();
       }
-    }, 30000);
+    }, 45000);
 
     return () => {
       if (marketMonitorTimer) {
@@ -795,8 +802,8 @@ const Dashboard = React.memo(() => {
   // 计算市场数据的样式
   const marketDataItems = useMemo(() => {
     if (loadingStocks) {
-      return Array(3).fill(0).map((_, index) => (
-        <Col xs={24} sm={12} md={8} key={index}>
+      return Array(4).fill(0).map((_, index) => (
+        <Col xs={24} sm={12} md={6} key={index}>
           <Card size="small" style={{ margin: '2px' }}>
             <Skeleton active paragraph={{ rows: 1 }} title={false} />
           </Card>
@@ -804,7 +811,7 @@ const Dashboard = React.memo(() => {
       ));
     }
     return marketData.map((market, index) => (
-      <Col xs={24} sm={12} md={8} key={index}>
+      <Col xs={24} sm={12} md={6} key={index}>
         <Card size="small" style={{ margin: '2px' }}>
           <Statistic
             title={market.name}
