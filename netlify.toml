@@ -3,6 +3,51 @@
   publish = "dist"
 
 [[redirects]]
-  from = "/*"
-  to = "/"
+  from = "/api/sina/*"
+  to = "https://hq.sinajs.cn/:splat"
   status = 200
+  force = true
+  headers = {
+    "Referer" = "https://finance.sina.com.cn/",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+  }
+
+[[redirects]]
+  from = "/api/eastmoney/*"
+  to = "https://push2.eastmoney.com/:splat"
+  status = 200
+  force = true
+  headers = {
+    "Referer" = "https://quote.eastmoney.com/",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+  }
+
+[[redirects]]
+  from = "/api/tencent/*"
+  to = "https://qt.gtimg.cn/:splat"
+  status = 200
+  force = true
+  headers = {
+    "Referer" = "https://finance.qq.com/",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+  }
+
+[[redirects]]
+  from = "/api/xueqiu/*"
+  to = "https://xueqiu.com/:splat"
+  status = 200
+  force = true
+  headers = {
+    "Referer" = "https://xueqiu.com/",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+  }
+
+[[redirects]]
+  from = "/api/ths/*"
+  to = "https://q.10jqka.com.cn/:splat"
+  status = 200
+  force = true
+  headers = {
+    "Referer" = "https://www.10jqka.com.cn/",
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+  }
