@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: zhiying-ai
+    env: static
+    buildCommand: npm run build
+    publishPath: dist
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
