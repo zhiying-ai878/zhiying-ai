@@ -4,7 +4,8 @@ const CACHE_NAME = 'ai-investment-cache-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/favicon.ico'
 ];
 
 // 安装 Service Worker
@@ -88,8 +89,8 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.message,
-    icon: 'https://cdn.jsdelivr.net/npm/antd@5.12.8/dist/favicon.ico',
-    badge: 'https://cdn.jsdelivr.net/npm/antd@5.12.8/dist/favicon.ico',
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
     data: {
       url: data.url
     }
