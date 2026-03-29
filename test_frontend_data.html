@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试自选股数据</title>
+    <script type="module">
+        import { smartDataRequest } from './smart_data_source_manager.js';
+        
+        async function testData() {
+            console.log('=== 测试前端数据获取 ===');
+            
+            // 测试用户自选股代码
+            const watchlistCodes = ['300389', '300480'];
+            console.log('测试代码:', watchlistCodes);
+            
+            try {
+                // 格式化代码
+                const formattedCodes = watchlistCodes.map(code => {
+                    return code.startsWith('6') ? `sh${code}` : `sz${code}`;
+                });
+                console.log('格式化代码:', formattedCodes);
+                
+                // 获取数据
+                const results = await smartDataRequest(formattedCodes, 'realtime');
+                console.log('获取到的数据:', JSON.stringify(results, null, 2));
+                
+                // 更新页面显示
+                const container = document.getElementById('results');
+                container.innerHTML = '<h3>获取到的自选股数据:</h3>';
+                
+                if (results && results.length > 0) {
+                    results.forEach(stock => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <p><strong>${stock.name}(${stock.code})</strong></p>
+                            <p>价格: ${stock.price.toFixed(2)}元</p>
+                            <p>涨跌幅: ${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)} (${stock.changePercent >= 0 ? '+' : ''}${stock.changePercent.toFixed(2)}%)</p>
+                            <hr>
+                        `;
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML += '<p>未获取到数据</p>';
+                }
+                
+            } catch (error) {
+                console.error('获取数据失败:', error);
+                document.getElementById('results').innerHTML = `<p>获取数据失败: ${error.message}</p>`;
+            }
+        }
+        
+        // 页面加载时执行测试
+        window.onload = testData;
+    </script>
+</head>
+<body>
+    <h1>自选股数据测试</h1>
+    <div id="results">加载中...</div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>测试页面</title>
+  </head>
+  <body>
+    <div style="padding: 20px">
+      <h1>测试页面</h1>
+      <p>如果看到此内容，说明服务器正常工作</p>
+      <p>当前时间：<span id="time"></span></p>
+    </div>
+    <script>
+      document.getElementById('time').textContent = new Date().toLocaleString();
+    </script>
+  </body>
+</html>

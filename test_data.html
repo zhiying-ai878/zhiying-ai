@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试数据获取</title>
+</head>
+<body>
+    <h1>股票数据测试</h1>
+    <div id="output"></div>
+    <script type="module">
+        import { getRealtimeQuote } from './src/utils/stockData.js';
+        
+        async function testData() {
+            const output = document.getElementById('output');
+            
+            try {
+                output.innerHTML += '<p>开始测试数据获取...</p>';
+                
+                // 测试市场指数
+                const indexCodes = ['sh000001', 'sz399001', 'sz399006', 'sh000688'];
+                output.innerHTML += `<p>测试指数代码: ${indexCodes.join(', ')}</p>`;
+                
+                const indexResults = await getRealtimeQuote(indexCodes);
+                output.innerHTML += `<p>获取到的指数数据: ${JSON.stringify(indexResults, null, 2)}</p>`;
+                
+                if (indexResults.length === 0) {
+                    output.innerHTML += '<p style="color: red;">❌ 未获取到任何指数数据</p>';
+                } else {
+                    output.innerHTML += `<p style="color: green;">✅ 成功获取到 ${indexResults.length} 个指数数据</p>`;
+                    indexResults.forEach((item, index) => {
+                        output.innerHTML += `<p>[${index}] ${item.code} ${item.name}: ${item.price} (涨跌幅: ${item.changePercent}%)</p>`;
+                    });
+                }
+                
+                // 测试自选股
+                const stockCodes = ['sh600519', 'sz000858', 'sz300750', 'sh601318', 'sh600276'];
+                output.innerHTML += `<p>测试自选股代码: ${stockCodes.join(', ')}</p>`;
+                
+                const stockResults = await getRealtimeQuote(stockCodes);
+                output.innerHTML += `<p>获取到的自选股数据: ${JSON.stringify(stockResults, null, 2)}</p>`;
+                
+                if (stockResults.length === 0) {
+                    output.innerHTML += '<p style="color: red;">❌ 未获取到任何自选股数据</p>';
+                } else {
+                    output.innerHTML += `<p style="color: green;">✅ 成功获取到 ${stockResults.length} 个自选股数据</p>`;
+                    stockResults.forEach((item, index) => {
+                        output.innerHTML += `<p>[${index}] ${item.code} ${item.name}: ${item.price} (涨跌幅: ${item.changePercent}%)</p>`;
+                    });
+                }
+                
+            } catch (error) {
+                output.innerHTML += `<p style="color: red;">❌ 获取数据失败: ${error.message}</p>`;
+                output.innerHTML += `<p>${error.stack}</p>`;
+            }
+        }
+        
+        testData();
+    </script>
+</body>
+</html>
