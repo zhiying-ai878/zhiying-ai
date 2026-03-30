@@ -10,7 +10,7 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
-  base: '/zhiying-ai/',
+  base: '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
