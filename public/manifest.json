@@ -6,39 +6,8 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1890ff",
-  "icons": [
-    {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "logo192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "logo512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
-  ],
+  "icons": [],
   "orientation": "portrait",
   "categories": ["finance", "productivity", "utilities"],
-  "shortcuts": [
-    {
-      "name": "查看仪表盘",
-      "short_name": "仪表盘",
-      "description": "查看投资仪表盘",
-      "url": "/",
-      "icons": [{ "src": "favicon.ico", "sizes": "192x192" }]
-    },
-    {
-      "name": "AI助手",
-      "short_name": "AI助手",
-      "description": "使用AI投资助手",
-      "url": "/aiassistant",
-      "icons": [{ "src": "favicon.ico", "sizes": "192x192" }]
-    }
-  ]
+  "shortcuts": []
 }
