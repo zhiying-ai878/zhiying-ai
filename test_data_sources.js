@@ -1,86 +1,136 @@
-// 统计数据源数量和连接状态
+// 数据源测试脚本
 import axios from 'axios';
 
-// 定义所有数据源
-const allDataSources = [
-    'sina', 'tencent', 'eastmoney', 'xueqiu', 'ths', 'huatai', 'gtja', 'haitong', 
-    'wind', 'choice', 'tushare', 'akshare', 'baostock', 'gugudata', 'stockapi', 
-    'mairui', 'alltick', 'sanhulianghua', 'qveris', 'finnhub', 'netease', 
-    'sina_backup', 'tencent_backup', 'eastmoney_backup', 'ths_backup', 'xueqiu_backup', 
-    'eastmoney_mini', 'eastmoney_pro', 'futunn', 'tiger', 'eastmoney_mobile', 
-    'sina_mobile', 'tencent_mobile', 'jrj', 'hexun', 'stcn', 'yicai', 'cnstock', 
-    'financialnews', 'zqrb', 'cnstocknews', 'jrj_mobile', 'hexun_mobile', 
-    'stcn_mobile', 'yicai_mobile'
-];
-
-console.log(`智盈AI系统总共有 ${allDataSources.length} 个数据源`);
-console.log('数据源列表:', allDataSources);
-
-// 测试主要数据源的连接状态
-const mainDataSources = ['sina', 'tencent', 'eastmoney', 'xueqiu', 'ths'];
-
-async function testDataSourceConnection() {
-    console.log('\n=== 测试主要数据源连接状态 ===');
-    
-    const results = [];
-    
-    for (const source of mainDataSources) {
-        try {
-            let url;
-            let headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            };
-            
-            switch (source) {
-                case 'sina':
-                    url = 'https://hq.sinajs.cn/list=sh600519';
-                    headers['Referer'] = 'https://finance.sina.com.cn/';
-                    break;
-                case 'tencent':
-                    url = 'https://qt.gtimg.cn/q=sh600519';
-                    break;
-                case 'eastmoney':
-                    url = 'https://push2.eastmoney.com/api/qt/stock/get?secid=1.600519&fields=f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f57,f58,f60,f169,f170';
-                    break;
-                case 'xueqiu':
-                    url = 'https://xueqiu.com/service/v5/stock/screener/quote/list?symbol=SH600519&count=1&order_by=percent&order=desc';
-                    break;
-                case 'ths':
-                    url = 'https://api.10jqka.com.cn/v1/quote/newest?codes=sh600519';
-                    break;
-                default:
-                    continue;
+// 测试东方财富API
+async function testEastMoneyAPI() {
+    console.log('=== 测试东方财富API ===');
+    try {
+        const response = await axios.get('https://push2.eastmoney.com/api/qt/clist/get', {
+            params: {
+                cb: 'jQuery1124010095947680688758_1710739200000',
+                type: '11',
+                pageindex: '1',
+                pagesize: '10',
+                fields: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152,f135',
+                _: Date.now().toString()
+            },
+            headers: {
+                'Referer': 'https://quote.eastmoney.com/',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'zh-CN,zh;q=0.9',
+                'Connection': 'keep-alive'
+            },
+            timeout: 5000
+        });
+        
+        console.log('✓ 东方财富API请求成功');
+        console.log('响应状态:', response.status);
+        
+        // 解析JSONP数据
+        const jsonpMatch = response.data.match(/\((.*)\)/);
+        if (jsonpMatch) {
+            const data = JSON.parse(jsonpMatch[1]);
+            if (data.data && data.data.diff) {
+                console.log(`✓ 成功获取 ${data.data.diff.length} 条数据`);
+                console.log('示例数据:', data.data.diff[0]);
+            } else {
+                console.log('✗ 数据格式不正确');
             }
-            
-            const startTime = Date.now();
-            const response = await axios.get(url, { headers, timeout: 5000 });
-            const endTime = Date.now();
-            
-            results.push({
-                name: source,
-                status: '成功',
-                statusCode: response.status,
-                responseTime: endTime - startTime,
-                dataLength: response.data ? response.data.length : 0
-            });
-            
-            console.log(`✅ ${source}: 连接成功 (${response.status}) - 响应时间: ${endTime - startTime}ms`);
-            
-        } catch (error) {
-            results.push({
-                name: source,
-                status: '失败',
-                error: error.message || String(error)
-            });
-            
-            console.log(`❌ ${source}: 连接失败 - ${error.message || String(error)}`);
+        } else {
+            console.log('✗ JSONP解析失败');
         }
+        
+        return true;
+    } catch (error) {
+        console.log('✗ 东方财富API请求失败:', error.message);
+        if (error.response) {
+            console.log('响应状态:', error.response.status);
+            console.log('响应数据:', error.response.data);
+        }
+        return false;
     }
-    
-    const successfulCount = results.filter(r => r.status === '成功').length;
-    console.log(`\n可顺利连接的数据源: ${successfulCount}/${mainDataSources.length}`);
-    
-    return results;
 }
 
-testDataSourceConnection();
+// 测试新浪API
+async function testSinaAPI() {
+    console.log('\n=== 测试新浪API ===');
+    try {
+        const response = await axios.get('https://hq.sinajs.cn/', {
+            params: {
+                list: 'sh000001,sz399001'
+            },
+            timeout: 5000
+        });
+        
+        console.log('✓ 新浪API请求成功');
+        console.log('响应状态:', response.status);
+        console.log('响应数据:', response.data);
+        return true;
+    } catch (error) {
+        console.log('✗ 新浪API请求失败:', error.message);
+        return false;
+    }
+}
+
+// 测试腾讯API
+async function testTencentAPI() {
+    console.log('\n=== 测试腾讯API ===');
+    try {
+        const response = await axios.get('https://web.ifzq.gtimg.cn/appstock/app/kline/kline?param=sh000001,day,1,640', {
+            timeout: 5000
+        });
+        
+        console.log('✓ 腾讯API请求成功');
+        console.log('响应状态:', response.status);
+        console.log('响应数据长度:', response.data.length);
+        return true;
+    } catch (error) {
+        console.log('✗ 腾讯API请求失败:', error.message);
+        return false;
+    }
+}
+
+// 测试本地JSON文件
+async function testLocalStockList() {
+    console.log('\n=== 测试本地股票列表 ===');
+    try {
+        const stockList = await import('./src/utils/stockList.json', { assert: { type: 'json' } });
+        console.log(`✓ 成功加载本地股票列表，共 ${stockList.default.length} 只股票`);
+        console.log('前5只股票:', stockList.default.slice(0, 5));
+        return true;
+    } catch (error) {
+        console.log('✗ 本地股票列表加载失败:', error.message);
+        return false;
+    }
+}
+
+// 运行所有测试
+async function runAllTests() {
+    console.log('开始数据源连接测试...\n');
+    
+    const eastMoneyResult = await testEastMoneyAPI();
+    const sinaResult = await testSinaAPI();
+    const tencentResult = await testTencentAPI();
+    const localResult = testLocalStockList();
+    
+    console.log('\n=== 测试结果汇总 ===');
+    console.log(`东方财富API: ${eastMoneyResult ? '✓ 成功' : '✗ 失败'}`);
+    console.log(`新浪API: ${sinaResult ? '✓ 成功' : '✗ 失败'}`);
+    console.log(`腾讯API: ${tencentResult ? '✓ 成功' : '✗ 失败'}`);
+    console.log(`本地股票列表: ${localResult ? '✓ 成功' : '✗ 失败'}`);
+    
+    const successCount = [eastMoneyResult, sinaResult, tencentResult, localResult].filter(Boolean).length;
+    console.log(`\n总体成功率: ${successCount}/4 (${(successCount/4*100).toFixed(0)}%)`);
+    
+    if (successCount === 0) {
+        console.log('\n❌ 所有数据源都无法连接，请检查网络连接和API配置');
+    } else if (successCount >= 2) {
+        console.log('\n✅ 多个数据源可用，系统应该能够正常运行');
+    } else {
+        console.log('\n⚠️  只有部分数据源可用，可能会影响系统稳定性');
+    }
+}
+
+// 执行测试
+runAllTests();
