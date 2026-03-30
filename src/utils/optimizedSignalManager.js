@@ -1,5 +1,5 @@
-import { getStockDataSource, getTechnicalIndicators, Logger } from './stockData';
-import { playSellAlert, playBuyAlert } from './audioManager';
+import { getStockDataSource, getTechnicalIndicators, Logger } from './stockData.js';
+import { playSellAlert, playBuyAlert } from './audioManager.js';
 const logger = Logger.getInstance();
 const DEFAULT_CONFIG = {
     maxBuySignals: 1,

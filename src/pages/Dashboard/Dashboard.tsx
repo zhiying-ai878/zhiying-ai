@@ -62,11 +62,11 @@ const Dashboard = React.memo(() => {
   });
 
   const [marketData, setMarketData] = useState([
-    { name: '上证指数', value: 0, change: 0, changePercent: 0 },
-    { name: '深证成指', value: 0, change: 0, changePercent: 0 },
-    { name: '创业板指', value: 0, change: 0, changePercent: 0 },
-    { name: '科创综指', value: 0, change: 0, changePercent: 0 },
-  ]);
+      { name: '上证指数', value: 0, change: 0, changePercent: 0 },
+      { name: '深证成指', value: 0, change: 0, changePercent: 0 },
+      { name: '创业板指', value: 0, change: 0, changePercent: 0 },
+      { name: '科创50', value: 0, change: 0, changePercent: 0 },
+    ]);
 
   const [latestSignals, setLatestSignals] = useState<any[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -338,8 +338,11 @@ const Dashboard = React.memo(() => {
 
   // 删除自选股
   const handleRemoveStock = useCallback((code: string, name: string) => {
-    setStocks(prevStocks => prevStocks.filter(stock => stock.code !== code));
-    removeFromWatchlist(code);
+    setStocks(prevStocks => {
+      const updatedStocks = prevStocks.filter(stock => stock.code !== code);
+      saveWatchlist(updatedStocks);
+      return updatedStocks;
+    });
     message.success(`已删除股票：${name}(${code})`);
   }, []);
 

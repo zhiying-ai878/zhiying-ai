@@ -25,7 +25,7 @@ const Signal = () => {
     useEffect(() => {
         loadSignals();
         startSignalGeneration();
-        startMarketStatusMonitor();
+        startMarketStatusMonitor().catch(console.error);
         return () => {
             if (signalTimerRef.current) {
                 clearInterval(signalTimerRef.current);
@@ -53,7 +53,7 @@ const Signal = () => {
         try {
             // 使用市场监控管理器获取全市场数据，而不是固定的股票列表
             const marketMonitor = getMarketMonitor();
-            const marketStatus = marketMonitor.getStatus();
+            const marketStatus = await marketMonitor.getStatus();
             // 如果市场监控正在运行，等待其完成扫描
             if (marketStatus.isScanning) {
                 console.log('市场监控正在扫描中...');
@@ -69,18 +69,18 @@ const Signal = () => {
             console.error('获取实时数据失败:', error);
         }
     };
-    const getMarketMonitorStatus = () => {
+    const getMarketMonitorStatus = async () => {
         const marketMonitor = getMarketMonitor();
-        const status = marketMonitor.getStatus();
+        const status = await marketMonitor.getStatus();
         setMarketMonitorStatus(status);
     };
-    const startMarketStatusMonitor = () => {
+    const startMarketStatusMonitor = async () => {
         // 启动市场监控器
         const marketMonitor = getMarketMonitor();
         marketMonitor.startMonitoring();
-        getMarketMonitorStatus();
-        marketStatusTimerRef.current = setInterval(() => {
-            getMarketMonitorStatus();
+        await getMarketMonitorStatus();
+        marketStatusTimerRef.current = setInterval(async () => {
+            await getMarketMonitorStatus();
         }, 3000); // 每3秒更新一次市场监控状态
     };
     const handleSignalAction = (signal, action) => {
@@ -119,7 +119,7 @@ const Signal = () => {
                                                 setLoading(true);
                                                 await generateRealTimeSignals();
                                                 setLoading(false);
-                                            }, loading: loading, block: true, children: "\u5237\u65B0\u4FE1\u53F7" }), _jsx(Button, { danger: true, icon: _jsx(DeleteOutlined, {}), onClick: handleClearHistory, block: true, children: "\u6E05\u7A7A\u5386\u53F2" })] }) }) })] }), marketMonitorStatus && (_jsx(Card, { size: "small", style: { margin: '2px 2px 8px 2px' }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u5E02\u573A\u72B6\u6001:" }), _jsx(Tag, { color: marketMonitorStatus.marketStatus === 'open' ? 'green' : marketMonitorStatus.marketStatus === 'auction' ? 'orange' : 'default', children: marketMonitorStatus.marketStatus === 'open' ? '开盘' : marketMonitorStatus.marketStatus === 'auction' ? '集合竞价' : '收盘' })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u76D1\u63A7\u80A1\u7968:" }), _jsx("span", { style: { fontWeight: 'bold' }, children: marketMonitorStatus.stockCount }), _jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u53EA" })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u626B\u63CF\u72B6\u6001:" }), _jsx(Tag, { color: marketMonitorStatus.isScanning ? 'blue' : 'default', children: marketMonitorStatus.isScanning ? '扫描中' : '空闲' })] }), marketMonitorStatus.lastScanTime && (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u6700\u540E\u626B\u63CF:" }), _jsx("span", { style: { fontSize: '11px', color: '#999' }, children: new Date(marketMonitorStatus.lastScanTime).toLocaleTimeString('zh-CN') })] })), marketMonitorStatus.activeScans > 0 && (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u6D3B\u8DC3\u626B\u63CF:" }), _jsx("span", { style: { fontWeight: 'bold', color: '#1890ff' }, children: marketMonitorStatus.activeScans })] }))] }) })), signals.length === 0 ? (_jsx(Alert, { message: "\u6B63\u5728\u76D1\u63A7\u5E02\u573A...", description: "AI\u6B63\u5728\u5B9E\u65F6\u76D1\u63A7\u5E02\u573A\uFF0C\u4E00\u65E6\u53D1\u73B0\u4EA4\u6613\u673A\u4F1A\u5C06\u7ACB\u5373\u53D1\u51FA\u4FE1\u53F7\u3002\u8BF7\u7A0D\u5019...", type: "info", showIcon: true })) : (_jsx(List, { dataSource: signals, renderItem: (item) => {
+                                            }, loading: loading, block: true, children: "\u5237\u65B0\u4FE1\u53F7" }), _jsx(Button, { danger: true, icon: _jsx(DeleteOutlined, {}), onClick: handleClearHistory, block: true, children: "\u6E05\u7A7A\u5386\u53F2" })] }) }) })] }), marketMonitorStatus && (_jsx(Card, { size: "small", style: { margin: '2px 2px 8px 2px' }, children: _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u5E02\u573A\u72B6\u6001:" }), _jsx(Tag, { color: marketMonitorStatus.marketStatus === 'open' ? 'green' : marketMonitorStatus.marketStatus === 'auction' ? 'orange' : 'default', children: marketMonitorStatus.marketStatus === 'open' ? '开盘' : marketMonitorStatus.marketStatus === 'auction' ? '集合竞价' : '收盘' })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u76D1\u63A7\u80A1\u7968:" }), _jsx("span", { style: { fontWeight: 'bold' }, children: marketMonitorStatus.stockCount }), _jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u53EA" })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u626B\u63CF\u72B6\u6001:" }), _jsx(Tag, { color: marketMonitorStatus.isScanning ? 'blue' : marketMonitorStatus.scanStatus === 'completed' ? 'green' : 'default', children: marketMonitorStatus.isScanning ? '扫描中' : marketMonitorStatus.scanStatus === 'completed' ? '已完成' : '空闲' })] }), marketMonitorStatus.lastScanTime && (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u6700\u540E\u626B\u63CF:" }), _jsx("span", { style: { fontSize: '11px', color: '#999' }, children: new Date(marketMonitorStatus.lastScanTime).toLocaleTimeString('zh-CN') })] })), marketMonitorStatus.activeScans > 0 && (_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { style: { color: '#666', fontSize: '12px' }, children: "\u6D3B\u8DC3\u626B\u63CF:" }), _jsx("span", { style: { fontWeight: 'bold', color: '#1890ff' }, children: marketMonitorStatus.activeScans })] }))] }) })), signals.length === 0 ? (_jsx(Alert, { message: "\u6B63\u5728\u76D1\u63A7\u5E02\u573A...", description: "AI\u6B63\u5728\u5B9E\u65F6\u76D1\u63A7\u5E02\u573A\uFF0C\u4E00\u65E6\u53D1\u73B0\u4EA4\u6613\u673A\u4F1A\u5C06\u7ACB\u5373\u53D1\u51FA\u4FE1\u53F7\u3002\u8BF7\u7A0D\u5019...", type: "info", showIcon: true })) : (_jsx(List, { dataSource: signals, renderItem: (item) => {
                         const tagInfo = getSignalTag(item.type);
                         return (_jsx(List.Item, { children: _jsx(Card, { size: "small", style: { width: '100%', margin: '2px' }, children: _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }, children: [_jsxs("div", { style: { flex: 1 }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }, children: [_jsx("span", { style: { fontWeight: 'bold', fontSize: '16px' }, children: item.stockName }), _jsx("span", { style: { color: '#666' }, children: item.stockCode }), _jsx(Tag, { color: tagInfo.color, icon: tagInfo.icon, children: tagInfo.text }), !item.isRead && _jsx(Tag, { color: "blue", children: "\u65B0" })] }), _jsxs("div", { style: { display: 'flex', gap: '16px', marginBottom: '8px', flexWrap: 'wrap' }, children: [item.price && _jsxs("span", { children: ["\u4EF7\u683C\uFF1A", _jsx("strong", { children: item.price.toFixed(2) })] }), item.targetPrice && _jsxs("span", { children: ["\u76EE\u6807\uFF1A", _jsx("strong", { children: item.targetPrice.toFixed(2) })] }), item.buyPriceRange && (_jsxs("span", { children: ["\u4E70\u5165\u533A\u95F4\uFF1A", _jsxs("strong", { style: { color: '#3f8600' }, children: [item.buyPriceRange.lower.toFixed(2), "-", item.buyPriceRange.upper.toFixed(2)] })] })), item.sellPriceRange && (_jsxs("span", { children: ["\u5356\u51FA\u533A\u95F4\uFF1A", _jsxs("strong", { style: { color: '#cf1322' }, children: [item.sellPriceRange.lower.toFixed(2), "-", item.sellPriceRange.upper.toFixed(2)] })] })), _jsx("span", { children: "\u7F6E\u4FE1\u5EA6\uFF1A" }), _jsx(Progress, { percent: item.confidence, size: "small", style: { width: '80px' } }), _jsxs("span", { children: ["\u8BC4\u5206\uFF1A", _jsx("strong", { children: item.score.toFixed(2) })] }), item.mainForceFlow && (_jsxs("span", { children: ["\u4E3B\u529B\u8D44\u91D1\uFF1A", _jsxs("strong", { style: { color: item.mainForceFlow >= 0 ? '#3f8600' : '#cf1322' }, children: [(item.mainForceFlow / 100000000).toFixed(2), "\u4EBF"] })] }))] }), _jsx("div", { style: { fontSize: '12px', color: '#666', marginBottom: '4px' }, children: item.reason }), _jsxs("div", { style: { fontSize: '11px', color: '#999' }, children: [_jsx(ClockCircleOutlined, {}), " ", new Date(item.timestamp).toLocaleString('zh-CN')] })] }), !item.isRead && (_jsxs(Space, { direction: "vertical", children: [_jsx(Button, { type: "primary", size: "small", onClick: () => handleSignalAction(item, 'execute'), children: "\u6267\u884C" }), _jsx(Button, { size: "small", onClick: () => handleSignalAction(item, 'ignore'), children: "\u5FFD\u7565" })] }))] }) }) }));
                     } }))] }))

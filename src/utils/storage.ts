@@ -203,6 +203,24 @@ export const addToWatchlist = (stock: {
 // 从自选中删除股票
 export const removeFromWatchlist = (code: string): boolean => {
   const watchlist = getWatchlist();
-  const filtered = watchlist.filter(item => item.code !== code);
+  // 处理代码格式不匹配问题 - 支持带前缀和不带前缀的代码匹配
+  const filtered = watchlist.filter(item => {
+    // 完全匹配
+    if (item.code === code) return false;
+    
+    // 处理带前缀和不带前缀的情况
+    const itemCodeNoPrefix = item.code.startsWith('sh') || item.code.startsWith('sz') ? item.code.substring(2) : item.code;
+    const targetCodeNoPrefix = code.startsWith('sh') || code.startsWith('sz') ? code.substring(2) : code;
+    
+    if (itemCodeNoPrefix === targetCodeNoPrefix) return false;
+    
+    // 尝试反向匹配（如果存储的是不带前缀的，而传入的是带前缀的）
+    if (!item.code.startsWith('sh') && !item.code.startsWith('sz')) {
+      const prefixedItemCode = item.code.startsWith('6') ? `sh${item.code}` : `sz${item.code}`;
+      if (prefixedItemCode === code) return false;
+    }
+    
+    return true;
+  });
   return saveWatchlist(filtered);
 };

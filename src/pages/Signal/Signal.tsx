@@ -75,7 +75,7 @@ const Signal = () => {
   useEffect(() => {
     loadSignals();
     startSignalGeneration();
-    startMarketStatusMonitor();
+    startMarketStatusMonitor().catch(console.error);
     
     return () => {
       if (signalTimerRef.current) {
@@ -107,7 +107,7 @@ const Signal = () => {
     try {
       // 使用市场监控管理器获取全市场数据，而不是固定的股票列表
       const marketMonitor = getMarketMonitor();
-      const marketStatus = marketMonitor.getStatus();
+      const marketStatus = await marketMonitor.getStatus();
       
       // 如果市场监控正在运行，等待其完成扫描
       if (marketStatus.isScanning) {
@@ -126,20 +126,20 @@ const Signal = () => {
     }
   };
 
-  const getMarketMonitorStatus = () => {
+  const getMarketMonitorStatus = async () => {
     const marketMonitor = getMarketMonitor();
-    const status = marketMonitor.getStatus();
+    const status = await marketMonitor.getStatus();
     setMarketMonitorStatus(status);
   };
 
-  const startMarketStatusMonitor = () => {
+  const startMarketStatusMonitor = async () => {
     // 启动市场监控器
     const marketMonitor = getMarketMonitor();
     marketMonitor.startMonitoring();
     
-    getMarketMonitorStatus();
-    marketStatusTimerRef.current = setInterval(() => {
-      getMarketMonitorStatus();
+    await getMarketMonitorStatus();
+    marketStatusTimerRef.current = setInterval(async () => {
+      await getMarketMonitorStatus();
     }, 3000); // 每3秒更新一次市场监控状态
   };
 

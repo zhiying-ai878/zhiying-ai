@@ -1,6 +1,6 @@
-import { scanAllStocks, getMainForceData, getTechnicalIndicators, Logger, getStockDataSource } from './stockData';
-import * as SignalManager from './optimizedSignalManager';
-import { playBuyAlert, playSellAlert } from './audioManager';
+import { scanAllStocks, getMainForceData, getTechnicalIndicators, Logger, getStockDataSource } from './stockData.js';
+import * as SignalManager from './optimizedSignalManager.js';
+import { playBuyAlert, playSellAlert } from './audioManager.js';
 const logger = Logger.getInstance();
 const DEFAULT_CONFIG = {
     enabled: true,
@@ -174,11 +174,12 @@ class MarketMonitorManager {
             logger.info('全市场监控已停止');
         }
     }
-    getStatus() {
+    async getStatus() {
+        const stockCount = await this.getStockCount();
         return {
             enabled: this.config.enabled,
             marketStatus: this.checkMarketStatus(),
-            stockCount: this.getStockCount(),
+            stockCount: stockCount,
             lastScanTime: this.lastScanTime,
             isScanning: this.isScanning,
             scanStatus: this.scanStatus,
@@ -615,8 +616,19 @@ class MarketMonitorManager {
             return 'closed';
         }
     }
-    getStockCount() {
-        return this.scanHistory.length > 0 ? this.scanHistory[this.scanHistory.length - 1].totalStocks : 0;
+    async getStockCount() {
+        if (this.scanHistory.length > 0) {
+            return this.scanHistory[this.scanHistory.length - 1].totalStocks;
+        }
+        // 如果没有扫描历史，直接获取股票列表数量
+        try {
+            const stockDataSource = getStockDataSource();
+            const stockList = await stockDataSource.getStockList();
+            return stockList.length;
+        } catch (error) {
+            logger.error('获取股票数量失败:', error);
+            return 0;
+        }
     }
     getActiveScans() {
         return this.isScanning ? 1 : 0;

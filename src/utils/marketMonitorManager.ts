@@ -228,11 +228,12 @@ class MarketMonitorManager {
     }
   }
 
-  getStatus() {
+  async getStatus() {
+    const stockCount = await this.getStockCount();
     return {
       enabled: this.config.enabled,
       marketStatus: this.checkMarketStatus(),
-      stockCount: this.getStockCount(),
+      stockCount: stockCount,
       lastScanTime: this.lastScanTime,
       isScanning: this.isScanning,
       scanStatus: this.scanStatus,
@@ -732,8 +733,19 @@ class MarketMonitorManager {
     }
   }
 
-  private getStockCount(): number {
-    return this.scanHistory.length > 0 ? this.scanHistory[this.scanHistory.length - 1].totalStocks : 0;
+  private async getStockCount(): Promise<number> {
+    if (this.scanHistory.length > 0) {
+      return this.scanHistory[this.scanHistory.length - 1].totalStocks;
+    }
+    // 如果没有扫描历史，直接获取股票列表数量
+    try {
+      const stockDataSource = getStockDataSource();
+      const stockList = await stockDataSource.getStockList();
+      return stockList.length;
+    } catch (error) {
+      logger.error('获取股票数量失败:', error);
+      return 0;
+    }
   }
 
   private getActiveScans(): number {
