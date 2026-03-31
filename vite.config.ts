@@ -10,7 +10,7 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
-  base: process.env.VITE_BASE_PATH || '/zhiying-ai/',
+  base: '/zhiying-ai/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

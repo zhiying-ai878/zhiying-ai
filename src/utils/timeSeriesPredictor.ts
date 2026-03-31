@@ -65,8 +65,19 @@ export class TimeSeriesPredictor {
         return;
       }
 
+      // 验证并修正历史数据中的价格（确保价格在合理范围内）
+      const validatedData = historicalData.map(data =>{
+        let close = data.close;
+        // 如果价格明显不合理（比如大于100元但实际股票价格应该在几十元），则除以100
+        if (close >100 && close< 10000 && stockCode !== 'sh000001' && stockCode !== 'sz399001') {
+          close = close / 100;
+          logger.warn(`修正股票${stockCode}的训练数据价格: ${data.close} -> ${close}`);
+        }
+        return { ...data, close };
+      });
+
       // 准备训练数据
-      const { X_train, y_train, X_test, y_test } = this.prepareTrainingData(historicalData);
+      const { X_train, y_train, X_test, y_test } = this.prepareTrainingData(validatedData);
       
       // 根据模型类型选择训练方法
       switch (this.config.modelType) {
@@ -395,7 +406,19 @@ export class TimeSeriesPredictor {
       }
       
       const predictions: PredictionResult[] = [];
-      const prices = historicalData.map(data => data.close);
+      
+      // 验证并修正历史数据中的价格（确保价格在合理范围内）
+      const validatedData = historicalData.map(data => {
+        let close = data.close;
+        // 如果价格明显不合理（比如大于1000元但实际股票价格应该在几十元），则除以100
+        if (close > 100 && close < 10000 && stockCode !== 'sh000001' && stockCode !== 'sz399001') {
+          close = close / 100;
+          logger.warn(`修正股票${stockCode}的价格数据: ${data.close} -> ${close}`);
+        }
+        return { ...data, close };
+      });
+      
+      const prices = validatedData.map(data => data.close);
       
       // 根据模型类型进行预测
       switch (model.type) {
@@ -455,11 +478,11 @@ export class TimeSeriesPredictor {
       
       // 结合趋势、波动率和动量进行预测
       const trendStrength = recentTrend * 0.6 + momentum * 0.4;
-      const predictedClose = lastPrice * (1 + trendStrength * 0.03);
-      const confidence = Math.max(0.6, Math.min(0.95, 0.7 + trendStrength * 0.3));
+      const predictedClose = lastPrice * (1 + trendStrength);
+      const confidence = Math.max(0.6, Math.min(0.95, 0.7 + Math.abs(trendStrength) * 0.3));
       
       // 计算上涨空间和目标价格
-      const upsidePotential = Math.max(0, trendStrength * 0.2);
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       
@@ -502,11 +525,11 @@ export class TimeSeriesPredictor {
       const arimaTrend = this.calculateARIMATrend(prices);
       const volatility = this.calculateVolatility(prices);
       
-      const predictedClose = lastPrice * (1 + arimaTrend * 0.02);
+      const predictedClose = lastPrice * (1 + arimaTrend);
       const confidence = Math.max(0.55, Math.min(0.9, 0.65 + Math.abs(arimaTrend) * 0.2));
       
       // 计算上涨空间和目标价格
-      const upsidePotential = Math.max(0, arimaTrend * 0.15);
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       
@@ -549,11 +572,11 @@ export class TimeSeriesPredictor {
       const svmTrend = this.calculateSVMTrend(prices);
       const volatility = this.calculateVolatility(prices);
       
-      const predictedClose = lastPrice * (1 + svmTrend * 0.025);
+      const predictedClose = lastPrice * (1 + svmTrend);
       const confidence = Math.max(0.6, Math.min(0.92, 0.7 + Math.abs(svmTrend) * 0.25));
       
       // 计算上涨空间和目标价格
-      const upsidePotential = Math.max(0, svmTrend * 0.18);
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       
@@ -596,11 +619,11 @@ export class TimeSeriesPredictor {
       const rfTrend = this.calculateRandomForestTrend(prices);
       const volatility = this.calculateVolatility(prices);
       
-      const predictedClose = lastPrice * (1 + rfTrend * 0.03);
+      const predictedClose = lastPrice * (1 + rfTrend);
       const confidence = Math.max(0.65, Math.min(0.93, 0.75 + Math.abs(rfTrend) * 0.2));
       
       // 计算上涨空间和目标价格
-      const upsidePotential = Math.max(0, rfTrend * 0.2);
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       
@@ -643,11 +666,11 @@ export class TimeSeriesPredictor {
       const xgbTrend = this.calculateXGBoostTrend(prices);
       const volatility = this.calculateVolatility(prices);
       
-      const predictedClose = lastPrice * (1 + xgbTrend * 0.035);
+      const predictedClose = lastPrice * (1 + xgbTrend);
       const confidence = Math.max(0.7, Math.min(0.95, 0.8 + Math.abs(xgbTrend) * 0.15));
       
       // 计算上涨空间和目标价格
-      const upsidePotential = Math.max(0, xgbTrend * 0.22);
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       
@@ -690,11 +713,11 @@ export class TimeSeriesPredictor {
       const lgbTrend = this.calculateLightGBMTrend(prices);
       const volatility = this.calculateVolatility(prices);
       
-      const predictedClose = lastPrice * (1 + lgbTrend * 0.032);
+      const predictedClose = lastPrice * (1 + lgbTrend);
       const confidence = Math.max(0.72, Math.min(0.94, 0.82 + Math.abs(lgbTrend) * 0.12));
       
       // 计算上涨空间和目标价格
-      const upsidePotential = Math.max(0, lgbTrend * 0.21);
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       
@@ -737,11 +760,11 @@ export class TimeSeriesPredictor {
       const prophetTrend = this.calculateProphetTrend(prices);
       const volatility = this.calculateVolatility(prices);
       
-      const predictedClose = lastPrice * (1 + prophetTrend * 0.028);
+      const predictedClose = lastPrice * (1 + prophetTrend);
       const confidence = Math.max(0.65, Math.min(0.92, 0.78 + Math.abs(prophetTrend) * 0.14));
       
       // 计算上涨空间和目标价格
-      const upsidePotential = Math.max(0, prophetTrend * 0.19);
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       
@@ -808,15 +831,11 @@ export class TimeSeriesPredictor {
         lgbPredictions[i].confidence * weights[6] +
         prophetPredictions[i].confidence * weights[7];
       
-      const upsidePotential = 
-        lstmPredictions[i].upsidePotential * weights[0] +
-        gruPredictions[i].upsidePotential * weights[1] +
-        arimaPredictions[i].upsidePotential * weights[2] +
-        svmPredictions[i].upsidePotential * weights[3] +
-        rfPredictions[i].upsidePotential * weights[4] +
-        xgbPredictions[i].upsidePotential * weights[5] +
-        lgbPredictions[i].upsidePotential * weights[6] +
-        prophetPredictions[i].upsidePotential * weights[7];
+      // 获取最新价格
+      const lastPrice = prices[prices.length - 1];
+      
+      // 基于集成预测价格计算上涨空间
+      const upsidePotential = Math.max(0, (predictedClose - lastPrice) / lastPrice);
       
       const trendVotes = [
         lstmPredictions[i].trend,
@@ -840,7 +859,6 @@ export class TimeSeriesPredictor {
       }
       
       // 计算目标价格和止损价格（基于集成预测）
-      const lastPrice = prices[prices.length - 1];
       const targetPrice = lastPrice * (1 + this.config.targetProfitPercent);
       const stopLoss = lastPrice * (1 - this.config.stopLossPercent);
       

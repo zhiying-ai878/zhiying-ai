@@ -115,7 +115,7 @@ const Dashboard = React.memo(() => {
             }
             console.log(`匹配代码: ${stock.code}, 找到数据: ${!!result}`);
             return result ? {
-              code: result.code,
+              code: stock.code, // 保持原始代码格式，不要使用result.code
               name: result.name,
               price: result.price,
               change: result.change,
