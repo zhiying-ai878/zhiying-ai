@@ -65,13 +65,28 @@ export class TimeSeriesPredictor {
         return;
       }
 
-      // 验证并修正历史数据中的价格（确保价格在合理范围内）
+      // 智能验证并修正历史数据中的价格（避免重复除以100）
       const validatedData = historicalData.map(data =>{
         let close = data.close;
-        // 如果价格明显不合理（比如大于100元但实际股票价格应该在几十元），则除以100
-        if (close >100 && close< 10000 && stockCode !== 'sh000001' && stockCode !== 'sz399001') {
+        // 计算价格统计特征来判断是否需要除以100
+        const prices = historicalData.map(d => d.close);
+        const medianPrice = prices.sort((a, b) => a - b)[Math.floor(prices.length / 2)];
+        const stdDev = Math.sqrt(prices.reduce((sum, p) => sum + Math.pow(p - medianPrice, 2), 0) / prices.length);
+        
+        // 定义合理价格范围：基于中位数和标准差
+        const reasonableMin = Math.max(0, medianPrice - 3 * stdDev);
+        const reasonableMax = medianPrice + 3 * stdDev;
+        
+        // 高价股票例外：茅台等高价股价格可能超过1000元
+        const isHighPriceStock = stockCode === '600519' || stockCode === 'sh600519';
+        
+        // 指数例外
+        const isIndex = stockCode === 'sh000001' || stockCode === 'sz399001';
+        
+        // 如果价格明显不合理且不是高价股或指数，则除以100
+        if (!isHighPriceStock && !isIndex && close > reasonableMax * 5) {
           close = close / 100;
-          logger.warn(`修正股票${stockCode}的训练数据价格: ${data.close} -> ${close}`);
+          logger.warn(`修正股票${stockCode}的价格数据: ${data.close} -> ${close}`);
         }
         return { ...data, close };
       });
@@ -88,7 +103,7 @@ export class TimeSeriesPredictor {
           await this.trainGRUModel(stockCode, X_train, y_train, X_test, y_test);
           break;
         case 'arima':
-          await this.trainARIMAModel(stockCode, historicalData);
+          await this.trainARIMAModel(stockCode, validatedData);
           break;
         case 'svm':
           await this.trainSVMModel(stockCode, X_train, y_train, X_test, y_test);
@@ -103,10 +118,10 @@ export class TimeSeriesPredictor {
           await this.trainLightGBMModel(stockCode, X_train, y_train, X_test, y_test);
           break;
         case 'prophet':
-          await this.trainProphetModel(stockCode, historicalData);
+          await this.trainProphetModel(stockCode, validatedData);
           break;
         case 'ensemble':
-          await this.trainEnsembleModel(stockCode, historicalData);
+          await this.trainEnsembleModel(stockCode, validatedData);
           break;
       }
 
@@ -407,11 +422,26 @@ export class TimeSeriesPredictor {
       
       const predictions: PredictionResult[] = [];
       
-      // 验证并修正历史数据中的价格（确保价格在合理范围内）
+      // 智能验证并修正历史数据中的价格（避免重复除以100）
       const validatedData = historicalData.map(data => {
         let close = data.close;
-        // 如果价格明显不合理（比如大于1000元但实际股票价格应该在几十元），则除以100
-        if (close > 100 && close < 10000 && stockCode !== 'sh000001' && stockCode !== 'sz399001') {
+        // 计算价格统计特征来判断是否需要除以100
+        const prices = historicalData.map(d => d.close);
+        const medianPrice = prices.sort((a, b) => a - b)[Math.floor(prices.length / 2)];
+        const stdDev = Math.sqrt(prices.reduce((sum, p) => sum + Math.pow(p - medianPrice, 2), 0) / prices.length);
+        
+        // 定义合理价格范围：基于中位数和标准差
+        const reasonableMin = Math.max(0, medianPrice - 3 * stdDev);
+        const reasonableMax = medianPrice + 3 * stdDev;
+        
+        // 高价股票例外：茅台等高价股价格可能超过1000元
+        const isHighPriceStock = stockCode === '600519' || stockCode === 'sh600519';
+        
+        // 指数例外
+        const isIndex = stockCode === 'sh000001' || stockCode === 'sz399001';
+        
+        // 如果价格明显不合理且不是高价股或指数，则除以100
+        if (!isHighPriceStock && !isIndex && close > reasonableMax * 5) {
           close = close / 100;
           logger.warn(`修正股票${stockCode}的价格数据: ${data.close} -> ${close}`);
         }
