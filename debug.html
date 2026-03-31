@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>智盈AI调试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: monospace; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>智盈AI数据源调试</h1>
+    <div id="logs"></div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            document.getElementById('logs').appendChild(div);
+        }
+        
+        // 测试东方财富API
+        async function testEastMoney() {
+            log('开始测试东方财富API...', 'info');
+            try {
+                const response = await fetch('https://push2.eastmoney.com/api/qt/clist/get?cb=jQuery1124010095947680688758_1710739200000&type=11&pageindex=1&pagesize=10&fields=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152,f135&_=' + Date.now(), {
+                    headers: {
+                        'Referer': 'https://quote.eastmoney.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
+                
+                const data = await response.text();
+                log(`东方财富API响应状态: ${response.status}`, response.status === 200 ? 'success' : 'error');
+                log(`响应数据长度: ${data.length}`, 'info');
+                
+                // 尝试解析JSONP
+                const match = data.match(/\((.*)\)/);
+                if (match) {
+                    try {
+                        const jsonData = JSON.parse(match[1]);
+                        if (jsonData.data && jsonData.data.diff) {
+                            log(`成功解析数据，获取到 ${jsonData.data.diff.length} 条记录`, 'success');
+                            log(`第一条数据: ${JSON.stringify(jsonData.data.diff[0])}`, 'info');
+                        } else {
+                            log('数据格式不正确', 'error');
+                        }
+                    } catch (e) {
+                        log(`JSON解析失败: ${e.message}`, 'error');
+                    }
+                } else {
+                    log('JSONP格式不正确', 'error');
+                }
+                
+            } catch (error) {
+                log(`东方财富API请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试新浪API
+        async function testSina() {
+            log('\n开始测试新浪API...', 'info');
+            try {
+                const response = await fetch('https://hq.sinajs.cn/?list=sh000001,sz399001');
+                const data = await response.text();
+                log(`新浪API响应状态: ${response.status}`, response.status === 200 ? 'success' : 'error');
+                log(`响应数据: ${data}`, 'info');
+            } catch (error) {
+                log(`新浪API请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试腾讯API
+        async function testTencent() {
+            log('\n开始测试腾讯API...', 'info');
+            try {
+                const response = await fetch('https://web.ifzq.gtimg.cn/appstock/app/kline/kline?param=sh000001,day,1,10');
+                const data = await response.text();
+                log(`腾讯API响应状态: ${response.status}`, response.status === 200 ? 'success' : 'error');
+                log(`响应数据长度: ${data.length}`, 'info');
+            } catch (error) {
+                log(`腾讯API请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 运行所有测试
+        async function runAllTests() {
+            log('=== 开始数据源连接测试 ===', 'info');
+            await testEastMoney();
+            await testSina();
+            await testTencent();
+            log('\n=== 测试完成 ===', 'info');
+        }
+        
+        // 页面加载时运行测试
+        window.onload = runAllTests;
+    </script>
+</body>
+</html>

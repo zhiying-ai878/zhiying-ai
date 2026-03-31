@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+        .test-box {
+            background-color: #f0f0f0;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 400px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>测试页面</h1>
+    <div class="test-box">
+        <p>这是一个简单的测试页面</p>
+        <p>当前时间: <span id="current-time"></span></p>
+    </div>
+
+    <script>
+        // 更新当前时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+        }
+        
+        // 初始化并每秒更新时间
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>

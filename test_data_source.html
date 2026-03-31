@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>数据源测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .log { background-color: #f8f9fa; border-color: #dee2e6; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>数据源连接测试</h1>
+    <button onclick="testDataSource()">测试数据源连接</button>
+    <div id="results"></div>
+    <div id="logs" class="result log"></div>
+
+    <script>
+        async function testDataSource() {
+            const resultsDiv = document.getElementById('results');
+            const logsDiv = document.getElementById('logs');
+            
+            resultsDiv.innerHTML = '<div class="result">测试中...</div>';
+            logsDiv.innerHTML = '';
+
+            try {
+                // 使用fetch API调用前端API
+                const response = await fetch('http://localhost:4105/zhiying-ai/api/stock/realtime', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ codes: ['sh600519', 'sz000858', 'sz300750'] })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('获取到的数据:', data);
+                
+                if (data && data.length > 0) {
+                    resultsDiv.innerHTML = '<div class="result success">✅ 数据源连接成功！</div>';
+                    
+                    let html = '<h3>获取到的数据：</h3>';
+                    data.forEach((stock, index) => {
+                        html += `<p>股票 ${index + 1}: ${stock.name}(${stock.code}) - 价格: ${stock.price} - 涨跌幅: ${stock.changePercent}%</p>`;
+                    });
+                    resultsDiv.innerHTML += html;
+                } else {
+                    resultsDiv.innerHTML = '<div class="result error">❌ 获取数据失败：未返回数据</div>';
+                }
+
+            } catch (error) {
+                console.error('测试失败:', error);
+                resultsDiv.innerHTML = `<div class="result error">❌ 测试失败：${error.message}</div>`;
+                logsDiv.innerHTML = `错误详情：${error.stack}`;
+            }
+        }
+    </script>
+</body>
+</html>

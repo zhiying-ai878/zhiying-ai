@@ -1,0 +1,135 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指数数据修复测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .loading {
+            color: #6c757d;
+        }
+        .data-display {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>指数数据修复测试</h1>
+        <p>点击按钮测试指数数据是否正确显示</p>
+        
+        <button onclick="testIndexData()">测试指数数据</button>
+        <button onclick="clearResults()">清除结果</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function testIndexData() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">正在获取数据...</div>';
+            
+            try {
+                // 测试指数数据
+                const indexCodes = ['sh000001', 'sh000688'];
+                const response = await fetch('http://localhost:4106/zhiying-ai/api/stock/realtime', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ codes: indexCodes })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('获取到的指数数据:', data);
+                
+                let html = '<h3>测试结果:</h3>';
+                
+                data.forEach(stock => {
+                    let statusClass = 'error';
+                    let statusText = '❌ 异常';
+                    
+                    if (stock.code === 'sh000001' || stock.code === '000001') {
+                        if (stock.price > 3000 && stock.price < 5000) {
+                            statusClass = 'success';
+                            statusText = '✅ 正常';
+                        }
+                    } else if (stock.code === 'sh000688' || stock.code === '000688') {
+                        if (stock.price > 1000 && stock.price < 2000) {
+                            statusClass = 'success';
+                            statusText = '✅ 正常';
+                        }
+                    }
+                    
+                    html += `
+                        <div class="test-result ${statusClass}">
+                            ${stock.name} (${stock.code}): ${stock.price.toFixed(2)} ${statusText}
+                        </div>
+                        <div class="data-display">
+                            涨跌幅: ${stock.changePercent.toFixed(2)}%, 涨跌额: ${stock.change.toFixed(2)}
+                        </div>
+                    `;
+                });
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">错误: ${error.message}</div>`;
+                console.error('测试失败:', error);
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

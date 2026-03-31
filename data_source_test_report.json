@@ -1,0 +1,821 @@
+{
+  "timestamp": "2026-03-28T08:24:12.141Z",
+  "summary": {
+    "total": 45,
+    "successful": 37,
+    "successRate": 82.22222222222221
+  },
+  "categoryResults": {
+    "核心数据源": [
+      {
+        "name": "sina",
+        "status": "success",
+        "responseTime": 298,
+        "statusCode": 200,
+        "data": "No data",
+        "message": "Connection successful"
+      },
+      {
+        "name": "tencent",
+        "status": "success",
+        "responseTime": 224,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "eastmoney",
+        "status": "success",
+        "responseTime": 187,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "券商数据源": [
+      {
+        "name": "huatai",
+        "status": "success",
+        "responseTime": 193,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "gtja",
+        "status": "failure",
+        "responseTime": 624,
+        "error": "write EPROTO BC450000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled:openssl\\ssl\\statem\\extensions.c:949:\n",
+        "errorCode": "EPROTO",
+        "message": "Connection failed"
+      },
+      {
+        "name": "haitong",
+        "status": "failure",
+        "responseTime": 276,
+        "error": "write EPROTO BC450000:error:0A000152:SSL routines:final_renegotiate:unsafe legacy renegotiation disabled:openssl\\ssl\\statem\\extensions.c:949:\n",
+        "errorCode": "EPROTO",
+        "message": "Connection failed"
+      }
+    ],
+    "专业金融数据源": [
+      {
+        "name": "wind",
+        "status": "success",
+        "responseTime": 393,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "choice",
+        "status": "success",
+        "responseTime": 745,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "tushare",
+        "status": "success",
+        "responseTime": 256,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "akshare",
+        "status": "success",
+        "responseTime": 1255,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "baostock",
+        "status": "success",
+        "responseTime": 727,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "API服务提供商": [
+      {
+        "name": "stockapi",
+        "status": "failure",
+        "responseTime": 917,
+        "error": "Request failed with status code 404",
+        "errorCode": "ERR_BAD_REQUEST",
+        "statusCode": 404,
+        "message": "Connection failed"
+      },
+      {
+        "name": "mairui",
+        "status": "success",
+        "responseTime": 226,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "alltick",
+        "status": "success",
+        "responseTime": 931,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "sanhulianghua",
+        "status": "failure",
+        "responseTime": 11080,
+        "error": "getaddrinfo ENOTFOUND api.sanhulianghua.com",
+        "errorCode": "ENOTFOUND",
+        "message": "Connection failed"
+      },
+      {
+        "name": "qveris",
+        "status": "failure",
+        "responseTime": 15019,
+        "error": "timeout of 15000ms exceeded",
+        "errorCode": "ECONNABORTED",
+        "message": "Connection failed"
+      }
+    ],
+    "国际数据源": [
+      {
+        "name": "finnhub",
+        "status": "success",
+        "responseTime": 1526,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "netease",
+        "status": "success",
+        "responseTime": 143,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "移动数据源": [
+      {
+        "name": "eastmoney_mobile",
+        "status": "success",
+        "responseTime": 228,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "sina_mobile",
+        "status": "success",
+        "responseTime": 173,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "tencent_mobile",
+        "status": "success",
+        "responseTime": 587,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "新闻数据源": [
+      {
+        "name": "jrj",
+        "status": "success",
+        "responseTime": 94,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "hexun",
+        "status": "success",
+        "responseTime": 174,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "stcn",
+        "status": "success",
+        "responseTime": 298,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "yicai",
+        "status": "success",
+        "responseTime": 589,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "备用数据源": [
+      {
+        "name": "sina_backup",
+        "status": "success",
+        "responseTime": 89,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "tencent_backup",
+        "status": "success",
+        "responseTime": 300,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "eastmoney_backup",
+        "status": "success",
+        "responseTime": 104,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "扩展数据源": [
+      {
+        "name": "xueqiu",
+        "status": "success",
+        "responseTime": 415,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "ths",
+        "status": "success",
+        "responseTime": 232,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "eastmoney_mini",
+        "status": "success",
+        "responseTime": 273,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "eastmoney_pro",
+        "status": "success",
+        "responseTime": 204,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "futunn",
+        "status": "success",
+        "responseTime": 392,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "tiger",
+        "status": "success",
+        "responseTime": 562,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "新闻数据源扩展": [
+      {
+        "name": "cnstock",
+        "status": "success",
+        "responseTime": 212,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "financialnews",
+        "status": "success",
+        "responseTime": 198,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "zqrb",
+        "status": "failure",
+        "responseTime": 2458,
+        "error": "connect ECONNREFUSED 43.166.6.192:443",
+        "errorCode": "ECONNREFUSED",
+        "message": "Connection failed"
+      },
+      {
+        "name": "cnstocknews",
+        "status": "failure",
+        "responseTime": 11072,
+        "error": "getaddrinfo ENOTFOUND www.cnstocknews.com",
+        "errorCode": "ENOTFOUND",
+        "message": "Connection failed"
+      },
+      {
+        "name": "jrj_mobile",
+        "status": "success",
+        "responseTime": 356,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "hexun_mobile",
+        "status": "failure",
+        "responseTime": 93,
+        "error": "Request failed with status code 567",
+        "errorCode": "ERR_BAD_RESPONSE",
+        "statusCode": 567,
+        "message": "Connection failed"
+      },
+      {
+        "name": "stcn_mobile",
+        "status": "success",
+        "responseTime": 229,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "yicai_mobile",
+        "status": "success",
+        "responseTime": 934,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ],
+    "最低优先级数据源": [
+      {
+        "name": "xueqiu_backup",
+        "status": "success",
+        "responseTime": 437,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "ths_backup",
+        "status": "success",
+        "responseTime": 354,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      },
+      {
+        "name": "backup_1",
+        "status": "success",
+        "responseTime": 69,
+        "statusCode": 200,
+        "data": "Data received",
+        "message": "Connection successful"
+      }
+    ]
+  },
+  "statusReport": {
+    "timestamp": 1774686252134,
+    "totalSources": 45,
+    "healthySources": 1,
+    "unhealthySources": 2,
+    "unknownSources": 42,
+    "failedSources": [],
+    "performanceStats": {
+      "eastmoney": {
+        "totalRequests": 1,
+        "totalResponseTime": 156,
+        "avgResponseTime": 156,
+        "minResponseTime": 156,
+        "maxResponseTime": 156
+      }
+    },
+    "healthStatus": {
+      "sina": {
+        "status": "unhealthy",
+        "lastCheck": 1774686251808,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 1,
+        "consecutiveFailures": 1,
+        "lastFailureTime": 1774686251808
+      },
+      "tencent": {
+        "status": "unhealthy",
+        "lastCheck": 1774686251977,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 1,
+        "consecutiveFailures": 1,
+        "lastFailureTime": 1774686251977
+      },
+      "eastmoney": {
+        "status": "healthy",
+        "lastCheck": 1774686252133,
+        "responseTime": 156,
+        "successCount": 1,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "huatai": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "gtja": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "haitong": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "wind": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "choice": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "tushare": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "akshare": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "baostock": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "stockapi": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "mairui": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "alltick": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "sanhulianghua": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "qveris": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "finnhub": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "netease": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "eastmoney_mobile": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "sina_mobile": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "tencent_mobile": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "jrj": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "hexun": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "stcn": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "yicai": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "sina_backup": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "tencent_backup": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "eastmoney_backup": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "xueqiu": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "ths": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "eastmoney_mini": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "eastmoney_pro": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "futunn": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "tiger": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "cnstock": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "financialnews": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "zqrb": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "cnstocknews": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "jrj_mobile": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "hexun_mobile": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "stcn_mobile": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "yicai_mobile": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "xueqiu_backup": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "ths_backup": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      },
+      "backup_1": {
+        "status": "unknown",
+        "lastCheck": 1774686251669,
+        "responseTime": 0,
+        "successCount": 0,
+        "failureCount": 0,
+        "consecutiveFailures": 0,
+        "lastFailureTime": 0
+      }
+    }
+  },
+  "bestSources": [
+    "eastmoney"
+  ]
+}
