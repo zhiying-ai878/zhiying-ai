@@ -5,7 +5,7 @@ import { ReloadOutlined, SearchOutlined, RiseOutlined, FallOutlined, ArrowUpOutl
 import { getRealtimeQuote, getStockDataSource } from '../../utils/stockData';
 import { debounce } from '../../utils/performance';
 import * as SignalManager from '../../utils/optimizedSignalManager';
-import { getWatchlist, saveWatchlist, removeFromWatchlist } from '../../utils/storage';
+import { getWatchlist, saveWatchlist } from '../../utils/storage';
 import { startMarketMonitoring, stopMarketMonitoring, scanMarketNow, getMarketMonitor } from '../../utils/marketMonitorManager';
 import { PredictionVisualization } from '../../components/PredictionVisualization/PredictionVisualization';
 import './Dashboard.css';
@@ -52,7 +52,7 @@ const Dashboard = React.memo(() => {
         { name: '上证指数', value: 0, change: 0, changePercent: 0 },
         { name: '深证成指', value: 0, change: 0, changePercent: 0 },
         { name: '创业板指', value: 0, change: 0, changePercent: 0 },
-        { name: '科创综指', value: 0, change: 0, changePercent: 0 },
+        { name: '科创50', value: 0, change: 0, changePercent: 0 },
     ]);
     const [latestSignals, setLatestSignals] = useState([]);
     const [initialLoading, setInitialLoading] = useState(true);
@@ -86,6 +86,56 @@ const Dashboard = React.memo(() => {
                             resultMap.set(prefixedCode, r);
                         }
                     });
+                    // 先获取最新的本地存储数据，确保用户的删除/添加操作优先
+                    const currentStoredStocks = getWatchlist();
+                    if (currentStoredStocks) {
+                        console.log('本地存储中的自选股:', currentStoredStocks.map(s => s.code));
+                        // 检查本地存储和当前状态的代码集合是否一致
+                        const storedCodes = new Set(currentStoredStocks.map(s => s.code));
+                        const currentCodes = new Set(stocks.map(s => s.code));
+                        // 如果代码集合不匹配，使用本地存储的数据，保留用户的删除/添加操作
+                        const codesMatch = storedCodes.size === currentCodes.size &&
+                            Array.from(storedCodes).every(code => currentCodes.has(code));
+                        if (!codesMatch) {
+                            // 使用本地存储的数据来更新状态，确保用户操作不被覆盖
+                            console.log('检测到本地存储与当前状态不一致，使用本地存储数据');
+                            const storedDataMap = new Map();
+                            results.forEach(r => {
+                                storedDataMap.set(r.code, r);
+                                if (r.code.startsWith('sh') || r.code.startsWith('sz')) {
+                                    storedDataMap.set(r.code.substring(2), r);
+                                }
+                                else {
+                                    const prefixedCode = r.code.startsWith('6') ? `sh${r.code}` : `sz${r.code}`;
+                                    storedDataMap.set(prefixedCode, r);
+                                }
+                            });
+                            const finalStocks = currentStoredStocks.map(stock => {
+                                let result = storedDataMap.get(stock.code);
+                                if (!result && !stock.code.startsWith('sh') && !stock.code.startsWith('sz')) {
+                                    const prefixedCode = stock.code.startsWith('6') ? `sh${stock.code}` : `sz${stock.code}`;
+                                    result = storedDataMap.get(prefixedCode);
+                                }
+                                return result ? {
+                                    code: stock.code, // 保持原始代码格式，不要使用result.code
+                                    name: result.name,
+                                    price: result.price,
+                                    change: result.change,
+                                    changePercent: result.changePercent
+                                } : {
+                                    code: stock.code,
+                                    name: stock.name,
+                                    price: 0,
+                                    change: 0,
+                                    changePercent: 0
+                                };
+                            });
+                            setStocks(finalStocks);
+                            console.log('使用本地存储数据更新状态，保留用户操作');
+                            return; // 不保存，避免覆盖用户操作
+                        }
+                    }
+                    // 代码集合匹配，只更新价格等数据，不改变股票列表
                     const updatedStocks = stocks.map(stock => {
                         // 尝试匹配多种代码格式
                         let result = resultMap.get(stock.code);
@@ -96,7 +146,7 @@ const Dashboard = React.memo(() => {
                         }
                         console.log(`匹配代码: ${stock.code}, 找到数据: ${!!result}`);
                         return result ? {
-                            code: result.code,
+                            code: stock.code, // 保持原始代码格式，避免代码格式变化
                             name: result.name,
                             price: result.price,
                             change: result.change,
@@ -104,11 +154,9 @@ const Dashboard = React.memo(() => {
                         } : stock;
                     });
                     console.log('准备更新自选股数据:', JSON.stringify(updatedStocks, null, 2));
-                    // 使用批量更新，减少渲染次数
+                    // 只更新状态，不保存到本地存储（避免覆盖用户操作）
                     setStocks(updatedStocks);
-                    // 保存到本地存储
-                    saveWatchlist(updatedStocks);
-                    console.log('自选股数据已更新');
+                    console.log('自选股数据已更新，保留用户的删除/添加操作');
                 }
                 else {
                     console.warn('未获取到自选股数据，继续使用当前数据');
@@ -117,12 +165,20 @@ const Dashboard = React.memo(() => {
             // 更新市场指数数据
             const indexCodes = ['sh000001', 'sz399001', 'sz399006', 'sh000688'];
             console.log('开始获取指数数据，代码:', indexCodes);
+            console.log('时间戳:', Date.now());
             try {
                 const indexResults = await getRealtimeQuote(indexCodes);
                 console.log('获取到的指数数据:', JSON.stringify(indexResults, null, 2));
                 if (indexResults && indexResults.length > 0) {
                     console.log('成功获取到', indexResults.length, '个指数数据');
                     console.log('指数数据详情:', JSON.stringify(indexResults, null, 2));
+                    // 详细检查每个指数的数据
+                    indexResults.forEach(quote => {
+                        console.log(`详细检查 ${quote.name}: 代码=${quote.code}, 价格=${quote.price}, 涨跌幅=${quote.changePercent}%`);
+                        if (quote.price < 100 && (quote.code === 'sh000001' || quote.code === 'sh000688')) {
+                            console.log(`⚠️  ${quote.name} 数据异常: 价格 ${quote.price} 过低`);
+                        }
+                    });
                     // 创建代码到数据的映射（支持带前缀和不带前缀的代码）
                     const indexMap = new Map();
                     indexResults.forEach(r => {
@@ -301,8 +357,23 @@ const Dashboard = React.memo(() => {
     }, [marketMonitoring, marketMonitor]);
     // 删除自选股
     const handleRemoveStock = useCallback((code, name) => {
-        setStocks(prevStocks => prevStocks.filter(stock => stock.code !== code));
-        removeFromWatchlist(code);
+        console.log('开始删除股票:', code, name);
+        // 先更新界面状态，确保立即生效
+        setStocks(prevStocks => {
+            const filteredStocks = prevStocks.filter(stock => {
+                // 处理代码格式匹配问题
+                const stockCodeNoPrefix = stock.code.startsWith('sh') || stock.code.startsWith('sz') ? stock.code.substring(2) : stock.code;
+                const targetCodeNoPrefix = code.startsWith('sh') || code.startsWith('sz') ? code.substring(2) : code;
+                const shouldRemove = stock.code === code || stockCodeNoPrefix === targetCodeNoPrefix;
+                console.log(`检查股票: ${stock.code}, 是否删除: ${shouldRemove}`);
+                return !shouldRemove;
+            });
+            console.log('删除后的股票列表:', filteredStocks.map(s => s.code));
+            // 保存到本地存储
+            saveWatchlist(filteredStocks);
+            console.log('已保存到本地存储');
+            return filteredStocks;
+        });
         message.success(`已删除股票：${name}(${code})`);
     }, []);
     // 查看预测分析
@@ -337,19 +408,38 @@ const Dashboard = React.memo(() => {
                 const results = await getRealtimeQuote([formattedCode]);
                 if (results && results.length > 0) {
                     const stock = results[0];
-                    // 检查是否已在列表中
-                    const existingIndex = stocks.findIndex(s => s.code === stock.code);
+                    console.log('搜索结果:', stock);
+                    // 检查是否已在列表中（处理代码格式匹配问题）
+                    let existingIndex = -1;
+                    for (let i = 0; i < stocks.length; i++) {
+                        const s = stocks[i];
+                        // 完全匹配
+                        if (s.code === stock.code) {
+                            existingIndex = i;
+                            break;
+                        }
+                        // 处理带前缀和不带前缀的情况
+                        const sCodeNoPrefix = s.code.startsWith('sh') || s.code.startsWith('sz') ? s.code.substring(2) : s.code;
+                        const stockCodeNoPrefix = stock.code.startsWith('sh') || stock.code.startsWith('sz') ? stock.code.substring(2) : stock.code;
+                        if (sCodeNoPrefix === stockCodeNoPrefix) {
+                            existingIndex = i;
+                            break;
+                        }
+                    }
+                    console.log('是否已存在:', existingIndex >= 0);
                     if (existingIndex >= 0) {
                         // 更新现有股票
                         const updatedStocks = [...stocks];
                         updatedStocks[existingIndex] = {
-                            code: stock.code,
+                            code: stocks[existingIndex].code, // 保持原有代码格式
                             name: stock.name,
                             price: stock.price,
                             change: stock.change,
                             changePercent: stock.changePercent
                         };
+                        console.log('更新后的股票列表:', updatedStocks.map(s => s.code));
                         setStocks(updatedStocks);
+                        saveWatchlist(updatedStocks);
                         message.success(`已更新股票：${stock.name}(${stock.code})`);
                     }
                     else {
@@ -363,8 +453,10 @@ const Dashboard = React.memo(() => {
                         };
                         setStocks(prevStocks => {
                             const updatedStocks = [...prevStocks, newStock];
+                            console.log('添加后的股票列表:', updatedStocks.map(s => s.code));
                             // 保存到本地存储
                             saveWatchlist(updatedStocks);
+                            console.log('已保存到本地存储');
                             return updatedStocks;
                         });
                         message.success(`已添加股票：${stock.name}(${stock.code})`);

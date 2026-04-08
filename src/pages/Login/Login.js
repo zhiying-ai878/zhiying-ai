@@ -21,7 +21,13 @@ const Login = ({ onLogin }) => {
             await new Promise(resolve => setTimeout(resolve, 1000));
             const savedUsers = JSON.parse(localStorage.getItem('users') || '[]');
             const user = savedUsers.find((u) => u.username === values.username && u.password === values.password);
-            if (user || (values.username === '15983768460' && values.password === 'admin123')) {
+            // 优先使用localStorage中的用户数据
+            if (user) {
+                message.success('登录成功！');
+                onLogin(values.username, values.password);
+            }
+            // 其次检查硬编码的特殊账号
+            else if (values.username === '15983768460' && values.password === 'admin123') {
                 message.success('登录成功！');
                 onLogin(values.username, values.password);
             }
@@ -78,31 +84,71 @@ const Login = ({ onLogin }) => {
             await new Promise(resolve => setTimeout(resolve, 1000));
             const savedUsers = JSON.parse(localStorage.getItem('users') || '[]');
             const userIndex = savedUsers.findIndex((u) => u.username === values.username);
-            if (userIndex === -1) {
+            // 特殊处理15983768460账号
+            if (values.username === '15983768460') {
+                // 验证原密码
+                if (values.oldPassword !== 'admin123') {
+                    message.error('原密码错误');
+                    return;
+                }
+                // 验证新密码
+                if (values.newPassword !== values.confirmPassword) {
+                    message.error('两次输入的新密码不一致');
+                    return;
+                }
+                if (values.newPassword === values.oldPassword) {
+                    message.error('新密码不能与原密码相同');
+                    return;
+                }
+                // 将15983768460账号添加到localStorage中
+                const existingSpecialUserIndex = savedUsers.findIndex((u) => u.username === '15983768460');
+                if (existingSpecialUserIndex === -1) {
+                    savedUsers.push({
+                        username: '15983768460',
+                        password: values.newPassword,
+                        email: '15983768460@example.com',
+                        createdAt: new Date().toISOString(),
+                        isAuthorized: true
+                    });
+                }
+                else {
+                    savedUsers[existingSpecialUserIndex].password = values.newPassword;
+                }
+                localStorage.setItem('users', JSON.stringify(savedUsers));
+                message.success('密码修改成功！正在跳转到登录页面...');
+                resetPasswordForm.resetFields();
+                setTimeout(() => {
+                    setActiveTab('login');
+                }, 1000);
+            }
+            else if (userIndex === -1) {
                 message.error('该用户名不存在');
                 return;
             }
-            const user = savedUsers[userIndex];
-            if (user.password !== values.oldPassword) {
-                message.error('原密码错误');
-                return;
+            else {
+                // 处理普通用户的密码修改
+                const user = savedUsers[userIndex];
+                if (user.password !== values.oldPassword) {
+                    message.error('原密码错误');
+                    return;
+                }
+                if (values.newPassword !== values.confirmPassword) {
+                    message.error('两次输入的新密码不一致');
+                    return;
+                }
+                if (values.newPassword === values.oldPassword) {
+                    message.error('新密码不能与原密码相同');
+                    return;
+                }
+                // 更新密码
+                savedUsers[userIndex].password = values.newPassword;
+                localStorage.setItem('users', JSON.stringify(savedUsers));
+                message.success('密码修改成功！正在跳转到登录页面...');
+                resetPasswordForm.resetFields();
+                setTimeout(() => {
+                    setActiveTab('login');
+                }, 1000);
             }
-            if (values.newPassword !== values.confirmPassword) {
-                message.error('两次输入的新密码不一致');
-                return;
-            }
-            if (values.newPassword === values.oldPassword) {
-                message.error('新密码不能与原密码相同');
-                return;
-            }
-            // 更新密码
-            savedUsers[userIndex].password = values.newPassword;
-            localStorage.setItem('users', JSON.stringify(savedUsers));
-            message.success('密码修改成功！正在跳转到登录页面...');
-            resetPasswordForm.resetFields();
-            setTimeout(() => {
-                setActiveTab('login');
-            }, 1000);
         }
         catch (error) {
             message.error('密码修改失败，请重试');

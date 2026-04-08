@@ -46,8 +46,8 @@ class AudioManager {
     }
     // 预加载音频文件
     async preloadAudio() {
-        // 卖出信号提示音
-        await this.loadAudio('sell', 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3');
+        // 卖出信号提示音 - 使用更长的警报声音
+        await this.loadAudio('sell', 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3');
         // 买入信号提示音
         await this.loadAudio('buy', 'https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3');
         // 预警提示音
@@ -115,9 +115,18 @@ class AudioManager {
             });
         }
     }
-    // 播放卖出信号提示音
+    // 播放卖出信号提示音 - 重复播放3次以确保用户听到
     playSellAlert() {
+        // 立即播放第一次
         this.play('sell');
+        // 延迟播放第二次
+        setTimeout(() => {
+            this.play('sell');
+        }, 1000);
+        // 延迟播放第三次
+        setTimeout(() => {
+            this.play('sell');
+        }, 2000);
     }
     // 播放买入信号提示音
     playBuyAlert() {

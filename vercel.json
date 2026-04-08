@@ -1,0 +1,17 @@
+{
+  "buildCommand": "VITE_BASE_PATH=/ npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "build": {
+    "env": {
+      "NODE_ENV": "production",
+      "VITE_BASE_PATH": "/"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

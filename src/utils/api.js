@@ -55,7 +55,7 @@ api.interceptors.response.use((response) => {
         const cacheKey = cache.generateKey(CacheKeys.STOCK_DATA, response.config.url || '', JSON.stringify(response.config.params || {}));
         cache.set(cacheKey, response.data, 5 * 60 * 1000); // 5分钟缓存
     }
-    return response.data;
+    return response;
 }, async (error) => {
     console.error('API请求错误:', error);
     // 重试机制
@@ -95,9 +95,13 @@ export const cachedGet = async (url, params, cacheTime = 5 * 60 * 1000) => {
         cache.set(cacheKey, response, cacheTime);
         return response;
     })
-        .finally(() => {
+        .then(response => {
+        return response;
+    })
+        .catch(error => {
         // 清除正在进行的请求
         pendingRequests.delete(requestKey);
+        throw error;
     });
     // 记录正在进行的请求
     pendingRequests.set(requestKey, request);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Typography, Button, message } from 'antd';
 import { getHistoricalDataManager } from '../../utils/historicalData';
 import { getTimeSeriesPredictor } from '../../utils/timeSeriesPredictor';
+import { getRealtimeQuote } from '../../utils/stockData';
 
 const { Text } = Typography;
 
@@ -10,9 +11,10 @@ interface PredictionVisualizationProps {
   stockName: string;
 }
 
-export const PredictionVisualization: React.FC<PredictionVisualizationProps>= ({ stockCode, stockName }) => {
+export const PredictionVisualization: React.FC<PredictionVisualizationProps> = ({ stockCode, stockName }) => {
   const [predictions, setPredictions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
 
   useEffect(() => {
     loadPredictionData();
@@ -22,6 +24,18 @@ export const PredictionVisualization: React.FC<PredictionVisualizationProps>= ({
     console.log(`开始加载股票 ${stockCode} 的预测数据`);
     setLoading(true);
     try {
+      // 获取当前实时价格
+      console.log(`正在获取股票 ${stockCode} 的实时价格`);
+      const realtimeData = await getRealtimeQuote([stockCode]);
+      console.log(`实时数据:`, realtimeData);
+      
+      if (realtimeData && realtimeData.length > 0) {
+        setCurrentPrice(realtimeData[0].price);
+        console.log(`股票 ${stockCode} 当前实时价格: ${realtimeData[0].price}`);
+      } else {
+        message.warning('无法获取实时价格，使用历史数据进行预测');
+      }
+
       const historicalManager = getHistoricalDataManager();
       console.log(`正在获取股票 ${stockCode} 的历史数据`);
       const data = await historicalManager.getHistoricalData(stockCode);
@@ -38,7 +52,7 @@ export const PredictionVisualization: React.FC<PredictionVisualizationProps>= ({
 
       const predictor = getTimeSeriesPredictor();
       console.log(`正在对股票 ${stockCode} 进行预测`);
-      const predictionResults = await predictor.predict(stockCode, data);
+      const predictionResults = await predictor.predict(stockCode, data, currentPrice || undefined);
       console.log(`预测结果: ${predictionResults.length} 条`, predictionResults);
       
       setPredictions(predictionResults);

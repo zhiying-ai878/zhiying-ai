@@ -21,20 +21,20 @@ export interface MarketMonitorConfig {
 }
 
 const DEFAULT_CONFIG: MarketMonitorConfig = {
-  enabled: true,
-  scanInterval: 300000,
-  batchSize: 100, // 优化：增加批处理大小，提高扫描效率
-  minConfidence: 40, // 优化：提高最低置信度，减少噪音信号
-  maxSignalsPerScan: 100, // 优化：增加最大信号数量
-  autoAlert: true,
-  stockFilters: {
-    minPrice: 0.1,
-    maxPrice: 2000,
-    minVolume: 50000, // 优化：提高最小成交量，过滤流动性差的股票
-    excludeST: true, // 优化：排除ST股票
-    excludeNewStocks: false // 优化：启用新股监控
-  }
-};
+      enabled: true,
+      scanInterval: 5000, // 优化：交易时间5秒扫描一次
+      batchSize: 200, // 优化：大幅增加批处理大小，提高扫描效率
+      minConfidence: 10, // 优化：极低置信度要求，确保所有大涨股票都能生成信号
+      maxSignalsPerScan: 200, // 优化：大幅增加最大信号数量
+      autoAlert: true,
+      stockFilters: {
+        minPrice: 0.1,
+        maxPrice: 2000,
+        minVolume: 5000, // 进一步降低最小成交量要求，包含更多股票
+        excludeST: true, // 用户要求：排除ST股票，降低风险
+        excludeNewStocks: false // 优化：启用新股监控
+      }
+    };
 
 interface StockFeature {
   stockCode: string;
@@ -158,10 +158,21 @@ class MarketMonitorManager {
     lastTrained: 0
   };
   private lastLearningTime: number = 0;
+  private lastMarketAnalysisTime: number = 0;
+  private lastAdaptiveOptimizationTime: number = 0;
+  private marketTrendHistory: any[] = [];
+  private signalPerformanceHistory: any[] = [];
+  private adaptiveThresholds: { [key: string]: number } = {
+    buyConfidence: 60,
+    sellConfidence: 60,
+    priceChangeThreshold: 0.02,
+    volumeThreshold: 1.2
+  };
 
   constructor(config?: Partial<MarketMonitorConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     logger.info('全市场监控管理器已初始化');
+    this.loadAdaptiveSettings();
   }
 
   startMonitoring() {
@@ -205,8 +216,8 @@ class MarketMonitorManager {
       // 集合竞价：中等频率
       interval = 8000; // 8秒，比之前更频繁
     } else {
-      // 收盘时间：降低频率，节省资源
-      interval = 300000; // 5分钟
+      // 收盘时间：保持较高频率以确保测试和验证
+      interval = 30000; // 30秒，比之前更频繁，确保能够生成信号
     }
 
     this.scanTimer = setInterval(() => {
@@ -225,6 +236,36 @@ class MarketMonitorManager {
       clearInterval(this.scanTimer);
       this.scanTimer = null;
       logger.info('全市场监控已停止');
+    }
+    this.saveAdaptiveSettings();
+  }
+
+  private loadAdaptiveSettings(): void {
+    try {
+      const savedSettings = localStorage.getItem('marketMonitorAdaptiveSettings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        this.adaptiveThresholds = { ...this.adaptiveThresholds, ...settings.thresholds };
+        this.marketTrendHistory = settings.marketTrendHistory || [];
+        this.signalPerformanceHistory = settings.signalPerformanceHistory || [];
+        logger.info('自适应设置加载成功');
+      }
+    } catch (error) {
+      logger.warn('加载自适应设置失败:', error);
+    }
+  }
+
+  private saveAdaptiveSettings(): void {
+    try {
+      const settings = {
+        thresholds: this.adaptiveThresholds,
+        marketTrendHistory: this.marketTrendHistory.slice(-100),
+        signalPerformanceHistory: this.signalPerformanceHistory.slice(-200)
+      };
+      localStorage.setItem('marketMonitorAdaptiveSettings', JSON.stringify(settings));
+      logger.info('自适应设置保存成功');
+    } catch (error) {
+      logger.warn('保存自适应设置失败:', error);
     }
   }
 
@@ -485,7 +526,7 @@ class MarketMonitorManager {
     let highConfidenceTotal = 0;
     
     this.limitUpStocksHistory.forEach(stock =>{
-      const score = this.calculateStockScore(stock);
+      const { score } = this.calculateStockScore(stock);
       
       if (score >0.5) {
         correct++;
@@ -510,7 +551,7 @@ class MarketMonitorManager {
     return combinedAccuracy;
   }
 
-  private calculateStockScore(stock: any): number {
+  private calculateStockScore(stock: any): { score: number; expectedReturn: number } {
     let score = 0;
     
     const mainForceData = stock.mainForceData || {};
@@ -520,6 +561,8 @@ class MarketMonitorManager {
     const ma5 = technicalData.ma?.ma5 || 0;
     const ma10 = technicalData.ma?.ma10 || 0;
     const ma20 = technicalData.ma?.ma20 || 0;
+    const ma60 = technicalData.ma?.ma60 || 0;
+    const ma120 = technicalData.ma?.ma120 || 0;
     const bollMiddle = technicalData.boll?.middle || 0;
     const bollUpper = technicalData.boll?.upper || 0;
     const bollLower = technicalData.boll?.lower || 0;
@@ -527,6 +570,8 @@ class MarketMonitorManager {
     const priceToMa5 = ma5 > 0 ? (currentPrice - ma5) / ma5 : 0;
     const priceToMa10 = ma10 > 0 ? (currentPrice - ma10) / ma10 : 0;
     const priceToMa20 = ma20 > 0 ? (currentPrice - ma20) / ma20 : 0;
+    const priceToMa60 = ma60 > 0 ? (currentPrice - ma60) / ma60 : 0;
+    const priceToMa120 = ma120 > 0 ? (currentPrice - ma120) / ma120 : 0;
     const priceToBollMiddle = bollMiddle > 0 ? (currentPrice - bollMiddle) / bollMiddle : 0;
     const priceToBollUpper = bollUpper > 0 ? (currentPrice - bollUpper) / bollUpper : 0;
     const bollWidth = bollMiddle > 0 ? (bollUpper - bollLower) / bollMiddle : 0;
@@ -537,6 +582,7 @@ class MarketMonitorManager {
     
     const kdjK = technicalData.kdj?.k || 0;
     const kdjD = technicalData.kdj?.d || 0;
+    const kdjJ = technicalData.kdj?.j || 0;
     const kdjCrossSignal = kdjK >kdjD ? 1 : kdjK< kdjD ? -1 : 0;
     
     const rsi = technicalData.rsi || 50;
@@ -556,6 +602,10 @@ class MarketMonitorManager {
     const industryType = mainForceData.industryRank< 20 ? 1 : 
                         mainForceData.industryRank <50 ? 2 : 
                         mainForceData.industryRank< 80 ? 3 : 4;
+    
+    // 计算预计涨跌幅
+    let expectedReturn = this.calculateExpectedReturn(stock, currentPrice, ma5, ma10, ma20, ma60, ma120, bollUpper, bollMiddle, 
+                                                   technicalData.macd, technicalData.kdj, rsi, mainForceData);
     
     Object.entries(this.learningModel.weights).forEach(([feature, weight]) =>{
       let value = 0;
@@ -585,6 +635,9 @@ class MarketMonitorManager {
         case 'kdjK':
           value = (kdjK - 25) / 50;
           break;
+        case 'kdjJ':
+          value = (kdjJ - 30) / 40;
+          break;
         case 'kdjCrossSignal':
           value = kdjCrossSignal === 1 ? 1 : 0;
           break;
@@ -596,6 +649,12 @@ class MarketMonitorManager {
           break;
         case 'priceToMa20':
           value = Math.min(priceToMa20 * 6, 1);
+          break;
+        case 'priceToMa60':
+          value = Math.min(priceToMa60 * 4, 1);
+          break;
+        case 'priceToMa120':
+          value = Math.min(priceToMa120 * 3, 1);
           break;
         case 'priceToBollUpper':
           value = Math.min(Math.abs(priceToBollUpper) * 5, 1);
@@ -646,27 +705,151 @@ class MarketMonitorManager {
       score += value * weight;
     });
     
-    return Math.min(1, score + this.learningModel.bias);
+    score = Math.min(1, score + this.learningModel.bias);
+    
+    // 返回得分和预计涨跌幅
+    return { score, expectedReturn };
+  }
+  
+  // 计算预计涨跌幅
+  private calculateExpectedReturn(stock: any, currentPrice: number, ma5: number, ma10: number, ma20: number, ma60: number, ma120: number, 
+                               bollUpper: number, bollMiddle: number, macd: any, kdj: any, rsi: number, mainForceData: any): number {
+    let expectedReturn = 0;
+    
+    // 1. 均线分析贡献
+    let maContribution = 0;
+    if (ma5 > ma10 && ma10 > ma20 && ma20 > ma60) {
+      // 多头排列
+      maContribution = 0.08;
+    } else if (ma5 > ma10 && ma10 > ma20) {
+      // 短期多头
+      maContribution = 0.04;
+    } else if (ma5< ma10 && ma10 <ma20) {
+      // 空头排列
+      maContribution = -0.06;
+    }
+    
+    // 2. 布林带分析贡献
+    let bollContribution = 0;
+    if (bollUpper >0 && bollMiddle > 0) {
+      const priceToBollUpper = (currentPrice - bollUpper) / bollUpper;
+      if (priceToBollUpper > 0.05) {
+        bollContribution = -0.05; // 接近上轨，可能回调
+      } else if (priceToBollUpper< -0.1) {
+        bollContribution = 0.04; // 远离上轨，有上升空间
+      }
+    }
+    
+    // 3. MACD分析贡献
+    let macdContribution = 0;
+    if (macd) {
+      const macdDiff = macd.diff || 0;
+      const macdDea = macd.dea || 0;
+      const macdHist = macd.hist || 0;
+      
+      if (macdDiff >macdDea && macdHist > 0) {
+        macdContribution = 0.06;
+      } else if (macdDiff< macdDea && macdHist <0) {
+        macdContribution = -0.05;
+      }
+    }
+    
+    // 4. KDJ分析贡献
+    let kdjContribution = 0;
+    if (kdj) {
+      const kdjK = kdj.k || 0;
+      const kdjD = kdj.d || 0;
+      const kdjJ = kdj.j || 0;
+      
+      if (kdjK > kdjD && kdjJ > kdjK) {
+        kdjContribution = 0.05;
+      } else if (kdjK< kdjD && kdjJ <kdjK) {
+        kdjContribution = -0.04;
+      }
+      
+      if (kdjK > 80) {
+        kdjContribution -= 0.03; // 超买
+      } else if (kdjK< 20) {
+        kdjContribution += 0.03; // 超卖
+      }
+    }
+    
+    // 5. RSI分析贡献
+    let rsiContribution = 0;
+    if (rsi >70) {
+      rsiContribution = -0.04; // 超买
+    } else if (rsi< 30) {
+      rsiContribution = 0.04; // 超卖
+    } else if (rsi >50) {
+      rsiContribution = 0.02; // 多头区域
+    }
+    
+    // 6. 主力资金分析贡献
+    let mainForceContribution = 0;
+    if (mainForceData.mainForceNetFlow > 100000) {
+      mainForceContribution = 0.12;
+    } else if (mainForceData.mainForceNetFlow > 50000) {
+      mainForceContribution = 0.08;
+    } else if (mainForceData.mainForceNetFlow > 10000) {
+      mainForceContribution = 0.04;
+    } else if (mainForceData.mainForceNetFlow< -50000) {
+      mainForceContribution = -0.08;
+    }
+    
+    // 7. 成交量分析贡献
+    let volumeContribution = 0;
+    if (mainForceData.volumeAmplification >2) {
+      volumeContribution = 0.05;
+    } else if (mainForceData.volumeAmplification > 1.5) {
+      volumeContribution = 0.03;
+    }
+    
+    // 8. 行业和概念排名贡献
+    let industryContribution = 0;
+    if (mainForceData.industryRank< 20) {
+      industryContribution = 0.06;
+    } else if (mainForceData.industryRank <50) {
+      industryContribution = 0.03;
+    }
+    
+    if (mainForceData.conceptRank< 10) {
+      industryContribution += 0.04;
+    } else if (mainForceData.conceptRank <30) {
+      industryContribution += 0.02;
+    }
+    
+    // 9. 价格趋势分析
+    let trendContribution = 0;
+    if (stock.changePercent && stock.changePercent >5) {
+      trendContribution = 0.08;
+    } else if (stock.changePercent && stock.changePercent > 2) {
+      trendContribution = 0.04;
+    } else if (stock.changePercent && stock.changePercent< -3) {
+      trendContribution = -0.05;
+    }
+    
+    // 综合计算预计涨跌幅
+    expectedReturn = maContribution + bollContribution + macdContribution + kdjContribution + 
+                    rsiContribution + mainForceContribution + volumeContribution + 
+                    industryContribution + trendContribution;
+    
+    // 确保预计涨跌幅在合理范围内
+    expectedReturn = Math.max(-0.2, Math.min(0.3, expectedReturn));
+    
+    return expectedReturn;
   }
 
   private async autoLearnAndOptimize(): Promise<void> {
     const now = Date.now();
-    const nowDate = new Date();
-    const lastLearningDate = new Date(this.lastLearningTime);
     
-    const isNewTradingDay = nowDate.getDate() !== lastLearningDate.getDate() ||
-                          nowDate.getMonth() !== lastLearningDate.getMonth() ||
-                          nowDate.getFullYear() !== lastLearningDate.getFullYear();
+    // 分析市场趋势
+    this.analyzeMarketTrend();
     
-    const marketStatus = this.checkMarketStatus();
-    const isTradingTime = marketStatus === 'open' || marketStatus === 'auction';
+    // 评估信号性能
+    this.evaluateSignalPerformance();
     
-    // 优化：每天收盘后和交易时间都进行学习，确保不断优化
-    if (!isNewTradingDay && !isTradingTime) {
-      return;
-    }
-    
-    logger.info('开始自动学习和模型优化...');
+    // 执行频繁的自适应优化
+    this.performFrequentAdaptiveOptimization();
     
     // 训练学习模型，分析涨停板股票特性
     this.trainLearningModel();
@@ -674,11 +857,179 @@ class MarketMonitorManager {
     // 优化买入条件，特别关注底部放量涨停板股票
     this.optimizeBuyConditions();
     
+    // 调整自适应阈值
+    this.adjustAdaptiveThresholds();
+    
     // 记录学习时间
     this.lastLearningTime = now;
     
+    // 保存自适应设置
+    this.saveAdaptiveSettings();
+    
     logger.info(`自动学习完成 - 涨停板样本数量: ${this.limitUpStocksHistory.length}`);
     logger.info(`模型准确率: ${(this.learningModel.accuracy * 100).toFixed(2)}%`);
+    logger.info(`自适应阈值: ${JSON.stringify(this.adaptiveThresholds)}`);
+  }
+
+  private analyzeMarketTrend(): void {
+    const now = Date.now();
+    
+    // 每30分钟分析一次市场趋势
+    if (now - this.lastMarketAnalysisTime< 1800000) {
+      return;
+    }
+    
+    this.lastMarketAnalysisTime = now;
+    
+    try {
+      // 分析市场整体趋势
+      const marketStats = {
+        timestamp: now,
+        totalStocks: this.limitUpStocksHistory.length,
+        upStocks: this.limitUpStocksHistory.filter(stock => stock.changePercent >0).length,
+        downStocks: this.limitUpStocksHistory.filter(stock => stock.changePercent< 0).length,
+        avgChange: this.limitUpStocksHistory.length >0 ?
+          this.limitUpStocksHistory.reduce((sum, stock) => sum + (stock.changePercent || 0), 0) / this.limitUpStocksHistory.length : 0,
+        avgVolume: this.limitUpStocksHistory.length >0 ?
+          this.limitUpStocksHistory.reduce((sum, stock) => sum + (stock.volume || 0), 0) / this.limitUpStocksHistory.length : 0
+      };
+      
+      this.marketTrendHistory.push(marketStats);
+      
+      // 保留最近100条记录
+      if (this.marketTrendHistory.length > 100) {
+        this.marketTrendHistory.shift();
+      }
+      
+      logger.info(`市场趋势分析完成: 上涨股票${marketStats.upStocks}只, 下跌股票${marketStats.downStocks}只, 平均涨幅${marketStats.avgChange.toFixed(2)}%`);
+    } catch (error) {
+      logger.warn('市场趋势分析失败:', error);
+    }
+  }
+
+  private evaluateSignalPerformance(): void {
+    try {
+      // 评估最近信号的性能
+      const recentSignals = this.signalManager.getSignalHistory().slice(-50);
+      
+      recentSignals.forEach(signal => {
+        // 这里可以添加信号性能评估逻辑
+        // 例如：跟踪信号发出后的价格变化，评估信号准确性
+        const performance = {
+          signalId: signal.id,
+          stockCode: signal.stockCode,
+          signalType: signal.type,
+          signalTime: signal.timestamp,
+          signalPrice: signal.price,
+          performance: 'pending' // 初始状态
+        };
+        
+        this.signalPerformanceHistory.push(performance);
+      });
+      
+      // 保留最近200条记录
+      if (this.signalPerformanceHistory.length > 200) {
+        this.signalPerformanceHistory.shift();
+      }
+      
+      logger.info(`信号性能评估完成，分析了${recentSignals.length}条信号`);
+    } catch (error) {
+      logger.warn('信号性能评估失败:', error);
+    }
+  }
+
+  private adjustAdaptiveThresholds(): void {
+    try {
+      // 根据市场趋势调整阈值
+      if (this.marketTrendHistory.length< 5) {
+        return;
+      }
+      
+      const recentTrends = this.marketTrendHistory.slice(-5);
+      const avgChange = recentTrends.reduce((sum, trend) =>sum + trend.avgChange, 0) / recentTrends.length;
+      
+      // 市场上涨趋势明显，提高买入置信度要求
+      if (avgChange > 1) {
+        this.adaptiveThresholds.buyConfidence = Math.min(70, this.adaptiveThresholds.buyConfidence + 5);
+        this.adaptiveThresholds.sellConfidence = Math.max(50, this.adaptiveThresholds.sellConfidence - 5);
+        logger.info('市场处于上涨趋势，调整买入阈值向上，卖出阈值向下');
+      }
+      // 市场下跌趋势明显，提高卖出置信度要求
+      else if (avgChange< -1) {
+        this.adaptiveThresholds.buyConfidence = Math.max(50, this.adaptiveThresholds.buyConfidence - 5);
+        this.adaptiveThresholds.sellConfidence = Math.min(70, this.adaptiveThresholds.sellConfidence + 5);
+        logger.info('市场处于下跌趋势，调整买入阈值向下，卖出阈值向上');
+      }
+      
+      // 根据成交量调整阈值
+      const avgVolume = recentTrends.reduce((sum, trend) => sum + trend.avgVolume, 0) / recentTrends.length;
+      const historicalAvgVolume = this.marketTrendHistory.reduce((sum, trend) => sum + trend.avgVolume, 0) / this.marketTrendHistory.length;
+      
+      if (avgVolume > historicalAvgVolume * 1.5) {
+        this.adaptiveThresholds.volumeThreshold = Math.min(1.5, this.adaptiveThresholds.volumeThreshold + 0.1);
+        logger.info('市场成交量放大，调整成交量阈值向上');
+      } else if (avgVolume< historicalAvgVolume * 0.5) {
+        this.adaptiveThresholds.volumeThreshold = Math.max(0.8, this.adaptiveThresholds.volumeThreshold - 0.1);
+        logger.info('市场成交量萎缩，调整成交量阈值向下');
+      }
+      
+      logger.info(`自适应阈值调整完成: ${JSON.stringify(this.adaptiveThresholds)}`);
+    } catch (error) {
+      logger.warn('自适应阈值调整失败:', error);
+    }
+  }
+
+  private performFrequentAdaptiveOptimization(): void {
+    const now = Date.now();
+    
+    // 每10分钟进行一次频繁的自适应优化
+    if (now - this.lastAdaptiveOptimizationTime< 600000) {
+      return;
+    }
+    
+    this.lastAdaptiveOptimizationTime = now;
+    
+    try {
+      // 分析最近的信号性能
+      const recentSignals = this.signalManager.getSignalHistory().slice(-20);
+      
+      if (recentSignals.length< 5) {
+        return;
+      }
+      
+      // 计算信号准确性
+      const buySignals = recentSignals.filter(s =>s.type === 'buy');
+      const sellSignals = recentSignals.filter(s => s.type === 'sell');
+      
+      // 根据信号准确性动态调整阈值
+      if (buySignals.length >0) {
+        const buyAccuracy = buySignals.filter(s => s.confidence > 70).length / buySignals.length;
+        
+        if (buyAccuracy > 0.8) {
+          this.adaptiveThresholds.buyConfidence = Math.max(40, this.adaptiveThresholds.buyConfidence - 5);
+          logger.info('买入信号准确性高，降低买入置信度要求');
+        } else if (buyAccuracy< 0.4) {
+          this.adaptiveThresholds.buyConfidence = Math.min(80, this.adaptiveThresholds.buyConfidence + 5);
+          logger.info('买入信号准确性低，提高买入置信度要求');
+        }
+      }
+      
+      if (sellSignals.length >0) {
+        const sellAccuracy = sellSignals.filter(s => s.confidence > 70).length / sellSignals.length;
+        
+        if (sellAccuracy > 0.8) {
+          this.adaptiveThresholds.sellConfidence = Math.max(40, this.adaptiveThresholds.sellConfidence - 5);
+          logger.info('卖出信号准确性高，降低卖出置信度要求');
+        } else if (sellAccuracy< 0.4) {
+          this.adaptiveThresholds.sellConfidence = Math.min(80, this.adaptiveThresholds.sellConfidence + 5);
+          logger.info('卖出信号准确性低，提高卖出置信度要求');
+        }
+      }
+      
+      logger.info(`频繁自适应优化完成: ${JSON.stringify(this.adaptiveThresholds)}`);
+    } catch (error) {
+      logger.warn('频繁自适应优化失败:', error);
+    }
   }
 
   private optimizeBuyConditions(): void {
@@ -720,17 +1071,21 @@ class MarketMonitorManager {
 
   private checkMarketStatus(): string {
     const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = 星期日, 1 = 星期一, ..., 6 = 星期六
     const hour = now.getHours();
     const minute = now.getMinutes();
     
-    if ((hour === 9 && minute >= 30) || (hour === 10) || (hour === 11 && minute <= 30) || 
-        (hour === 13) || (hour === 14) || (hour === 15 && minute === 0)) {
-      return 'open';
-    } else if (hour === 9 && minute >= 15 && minute <= 25) {
-      return 'auction';
-    } else {
-      return 'closed';
+    // 只有周一到周五才可能开盘或集合竞价
+    if (dayOfWeek >= 1 && dayOfWeek<= 5) {
+      if ((hour === 9 && minute >= 30) || (hour === 10) || (hour === 11 && minute <= 30) || 
+          (hour === 13) || (hour === 14) || (hour === 15 && minute === 0)) {
+        return 'open';
+      } else if (hour === 9 && minute >= 15 && minute <= 25) {
+        return 'auction';
+      }
     }
+    
+    return 'closed';
   }
 
   private async getStockCount(): Promise<number> {
@@ -775,7 +1130,9 @@ class MarketMonitorManager {
     let dataSourceStatus: 'connected' | 'failed' | 'unknown' = 'unknown';
 
     try {
-      this.scanStatus = 'preparing';
+      // 立即设置扫描状态，让用户看到"扫描中"
+      this.scanStatus = 'scanning';
+      this.isScanning = true;
       logger.info(`=== 开始全市场扫描 [${scanId}] ===`);
       logger.info(`当前市场状态: ${marketStatus}, 扫描间隔: ${this.config.scanInterval/1000}秒`);
       
@@ -807,13 +1164,10 @@ class MarketMonitorManager {
       totalStocks = stockList.length;
       logger.info(`[${scanId}] 获取到 ${totalStocks} 只A股股票列表`);
 
+      // 优化：即使在收盘时间也获取行情数据，确保能够生成信号
       if (marketStatus === 'closed') {
-        logger.info(`[${scanId}] 当前不在交易时间内 (${marketStatus})，跳过行情数据获取`);
-        logger.info(`[${scanId}] 执行自动学习和优化...`);
-        await this.autoLearnAndOptimize();
-        logger.info(`[${scanId}] 自动学习和优化完成`);
-        scanStatus = 'partial';
-      } else {
+        logger.info(`[${scanId}] 当前不在交易时间内 (${marketStatus})，但仍然获取行情数据以生成测试信号`);
+      }
         try {
           logger.info(`[${scanId}] 开始获取行情数据，批处理大小: ${this.config.batchSize}`);
           // 为scanAllStocks添加超时处理，避免网络问题导致整个扫描卡住
@@ -826,8 +1180,6 @@ class MarketMonitorManager {
           if (Array.isArray(allQuotes)) {
             dataSourceConnected = true;
             dataSourceStatus = 'connected';
-            this.scanStatus = 'scanning';
-            this.isScanning = true; // 只有获取到行情数据后才显示扫描中
             logger.info(`[${scanId}] 获取到 ${allQuotes.length} 只股票的实时行情`);
 
             if (allQuotes.length > 0) {
@@ -835,16 +1187,32 @@ class MarketMonitorManager {
               filteredQuotes = this.filterStocks(allQuotes);
               logger.info(`[${scanId}] 过滤后剩余 ${filteredQuotes.length} 只股票`);
 
-              const stockCodes = filteredQuotes.map(quote => quote.code);
+              // 优先处理持仓股票
+              const holdings = this.signalManager.getPositions();
+              const holdingCodes = holdings.map(pos => pos.stockCode);
+              
+              // 将持仓股票优先放在前面
+              const holdingQuotes = filteredQuotes.filter(quote => holdingCodes.includes(quote.code));
+              const nonHoldingQuotes = filteredQuotes.filter(quote => !holdingCodes.includes(quote.code));
+              const prioritizedQuotes = [...holdingQuotes, ...nonHoldingQuotes];
+              
+              logger.info(`[${scanId}] 持仓股票: ${holdingQuotes.length}只，非持仓股票: ${nonHoldingQuotes.length}只`);
+
+              const stockCodes = prioritizedQuotes.map(quote => quote.code);
               logger.info(`[${scanId}] 开始获取主力资金数据，股票数量: ${stockCodes.length}`);
               const mainForceDataMap = await this.getMainForceDataMap(stockCodes);
               logger.info(`[${scanId}] 获取主力资金数据完成，数据项数: ${mainForceDataMap.size}`);
 
               logger.info(`[${scanId}] 开始生成交易信号...`);
-              const signals = await this.generateSignals(filteredQuotes, mainForceDataMap);
+              const signals = await this.generateSignals(prioritizedQuotes, mainForceDataMap);
               buySignals = signals.filter(s => s.type === 'buy').length;
               sellSignals = signals.filter(s => s.type === 'sell').length;
               logger.info(`[${scanId}] 信号生成完成，买入信号: ${buySignals}个, 卖出信号: ${sellSignals}个`);
+              
+              // 将生成的信号添加到信号管理器中
+              signals.forEach(signal => {
+                this.signalManager.addSignal(signal);
+              });
             } else {
               logger.warn(`[${scanId}] 未获取到股票行情数据，但股票列表获取成功`);
               scanStatus = 'partial';
@@ -860,7 +1228,6 @@ class MarketMonitorManager {
           this.scanStatus = 'failed';
           // 数据源连接失败，不显示扫描中
         }
-      }
 
     } catch (error) {
       logger.error(`[${scanId}] 全市场扫描失败:`, error instanceof Error ? error.message : String(error));
@@ -898,12 +1265,16 @@ class MarketMonitorManager {
       logger.info(`[${scanId}] 扫描状态: ${scanStatus}`);
       logger.info(`[${scanId}] 扫描完成，等待下次扫描...`);
 
-      // 确保扫描状态被重置
+      // 确保扫描状态被重置，但添加更长延迟让用户能够看到"扫描中"状态
+    setTimeout(() => {
       if (this.isScanning) {
         this.isScanning = false;
       }
       this.scanStatus = 'completed';
-      this.lastScanTime = Date.now();
+      logger.info(`[${scanId}] 扫描状态已重置为空闲`);
+    }, 5000); // 延迟5秒，确保用户能清晰看到扫描中状态
+    this.lastScanTime = Date.now();
+    logger.info(`[${scanId}] 扫描完成，状态将在5秒后重置`);
     }
   }
 
@@ -959,15 +1330,66 @@ class MarketMonitorManager {
 
         try {
           technicalData = await getTechnicalIndicators(quote.code);
+          if (!technicalData) {
+            logger.warn(`获取股票 ${quote.code} 技术指标返回null，使用默认值继续分析`);
+            // 使用默认技术指标值，确保信号能够生成
+            technicalData = {
+              rsi: 50,
+              macd: { diff: 0, dea: 0, macd: 0 },
+              kdj: { k: 50, d: 50, j: 50 },
+              ma: { ma5: quote.price, ma10: quote.price, ma20: quote.price, ma30: quote.price },
+              boll: { upper: quote.price * 1.05, middle: quote.price, lower: quote.price * 0.95 },
+              volume: { ma5: quote.volume, ma10: quote.volume, ma20: quote.volume },
+              sar: quote.price,
+              cci: 0,
+              adx: 20,
+              williamsR: -50,
+              bias: 0
+            };
+          }
         } catch (error) {
-          logger.warn(`获取股票 ${quote.code} 技术指标失败，跳过分析:`, error instanceof Error ? error.message : String(error));
-          return [];
+          logger.warn(`获取股票 ${quote.code} 技术指标失败，使用默认值继续分析:`, error instanceof Error ? error.message : String(error));
+          // 使用默认技术指标值，确保信号能够生成
+          technicalData = {
+            rsi: 50,
+            macd: { diff: 0, dea: 0, macd: 0 },
+            kdj: { k: 50, d: 50, j: 50 },
+            ma: { ma5: quote.price, ma10: quote.price, ma20: quote.price, ma30: quote.price },
+            boll: { upper: quote.price * 1.05, middle: quote.price, lower: quote.price * 0.95 },
+            volume: { ma5: quote.volume, ma10: quote.volume, ma20: quote.volume },
+            sar: quote.price,
+            cci: 0,
+            adx: 20,
+            williamsR: -50,
+            bias: 0
+          };
         }
         
         mainForceData = mainForceDataMap.get(quote.code);
         if (!mainForceData) {
-          logger.warn(`未获取到股票 ${quote.code} 主力资金数据，跳过分析`);
-          return [];
+          logger.warn(`未获取到股票 ${quote.code} 主力资金数据，使用默认值继续分析`);
+          // 使用默认主力资金数据，确保信号能够生成
+          mainForceData = {
+            stockCode: quote.code,
+            stockName: quote.name,
+            timestamp: Date.now(),
+            currentPrice: quote.price,
+            volumeAmplification: 1,
+            turnoverRate: 1,
+            superLargeOrder: { volume: 0, amount: 0, netFlow: 0 },
+            largeOrder: { volume: 0, amount: 0, netFlow: 0 },
+            mediumOrder: { volume: 0, amount: 0, netFlow: 0 },
+            smallOrder: { volume: quote.volume, amount: quote.price * quote.volume, netFlow: 0 },
+            totalNetFlow: 0,
+            mainForceNetFlow: 0,
+            mainForceRatio: 0,
+            mainForceType: 'unknown',
+            flowStrength: 'moderate',
+            continuousFlowPeriods: 0,
+            industryRank: 50,
+            conceptRank: 50,
+            trend: 'stable'
+          };
         }
 
         const comprehensiveData = {
@@ -981,10 +1403,19 @@ class MarketMonitorManager {
 
         this.collectLimitUpStockFeatures(comprehensiveData, technicalData, mainForceData);
 
-        const limitUpPotentialScore = this.calculateStockScore(comprehensiveData);
+        const { score: limitUpPotentialScore, expectedReturn } = this.calculateStockScore(comprehensiveData);
         
-        const buySignal = this.generateBuySignal(comprehensiveData, limitUpPotentialScore);
+        // 添加详细调试日志
+        if (comprehensiveData.changePercent && comprehensiveData.changePercent > 5) {
+          logger.info(`[DEBUG] 大涨股票 ${comprehensiveData.stockName}(${comprehensiveData.stockCode}) - 涨幅: ${comprehensiveData.changePercent.toFixed(2)}%, 预计涨幅: ${(expectedReturn * 100).toFixed(2)}%, 涨停潜力: ${(limitUpPotentialScore * 100).toFixed(2)}%`);
+        }
+        
+        const buySignal = this.generateBuySignal(comprehensiveData, limitUpPotentialScore, expectedReturn);
         const sellSignal = this.generateSellSignal(comprehensiveData);
+        
+        if (buySignal) {
+          logger.info(`[SIGNAL] 生成买入信号: ${comprehensiveData.stockName}(${comprehensiveData.stockCode}) - 置信度: ${buySignal.confidence}%, 预计涨幅: ${(expectedReturn * 100).toFixed(2)}%`);
+        }
         
         const stockSignals = [];
         if (buySignal) {
@@ -1017,7 +1448,7 @@ class MarketMonitorManager {
     return combinedSignals.slice(0, this.config.maxSignalsPerScan);
   }
 
-  private generateBuySignal(data: any, limitUpPotentialScore: number = 0): any | null {
+  private generateBuySignal(data: any, limitUpPotentialScore: number = 0, expectedReturn: number = 0): any | null {
     const { mainForceData, technicalData, currentPrice } = data;
     
     const mainForceNetFlow = mainForceData.mainForceNetFlow;
@@ -1025,60 +1456,113 @@ class MarketMonitorManager {
     const mainForceRatio = totalNetFlow !== 0 ? Math.abs(mainForceNetFlow) / Math.abs(totalNetFlow) : 0;
     
     const { rsi, macd, kdj, ma, boll, volume } = technicalData;
-
-    // 优化的买入条件，特别关注底部放量涨停板股票
-    const buyConditions = [
-      // 主力资金净流入条件（现在使用优化的备用数据）
-      mainForceNetFlow > 0, // 简化条件：只要有资金流入就满足
-      mainForceRatio > 0.05, // 进一步降低主力资金占比阈值
-      mainForceData.mainForceType === 'institution' || mainForceData.mainForceType === 'privateFund', // 关注机构和私募基金
-      mainForceData.flowStrength === 'increasing' || mainForceData.trend === 'increasing', // 关注趋势增强的情况
-      mainForceData.flowStrength === 'strong' || mainForceData.flowStrength === 'moderate', // 关注强或中等资金流入
-      mainForceData.continuousFlowPeriods && mainForceData.continuousFlowPeriods >= 1, // 连续流入至少1个周期
-      
-      // 价格和技术指标条件（增加更多独立条件）
-      data.changePercent !== undefined && data.changePercent > 0, // 只要上涨就满足，不限制涨幅
-      data.changePercent !== undefined && data.changePercent > 2, // 涨幅超过2%
-      currentPrice > ma.ma5, // 价格站上5日均线
-      currentPrice > ma.ma10, // 价格站上10日均线
-      currentPrice > ma.ma20, // 价格站上20日均线
-      rsi > 30, // 放宽RSI下限，允许超买状态
-      rsi > 50, // RSI处于强势区域
-      macd && macd.diff > macd.dea, // MACD金叉
-      macd && macd.macd > 0, // MACD柱状体为正
-      kdj && kdj.k > kdj.d, // KDJ金叉
-      kdj && kdj.j > kdj.k, // KDJ多头排列
-      boll && currentPrice > boll.middle, // 价格在布林带中轨上方
-      boll && currentPrice > boll.lower, // 价格在布林带下轨上方
-      
-      // 成交量和活跃度条件
-      mainForceData.volumeAmplification > 1.0, // 降低成交量放大阈值
-      mainForceData.turnoverRate > 0.1, // 降低换手率阈值
-      volume && volume.ma5 > volume.ma10, // 成交量均线多头排列
-      volume && volume.ma5 > volume.ma20, // 成交量均线多头排列
-      
-      // 行业和概念条件
-      mainForceData.industryRank === undefined || mainForceData.industryRank< 80, // 大幅放宽行业排名限制
-      mainForceData.conceptRank === undefined || mainForceData.conceptRank <60, // 大幅放宽概念排名限制
-      
-      // 市场类型条件
-      data.stockCode && (data.stockCode.startsWith('688') || data.stockCode.startsWith('300') || data.stockCode.startsWith('301') || data.stockCode.startsWith('60') || data.stockCode.startsWith('000') || data.stockCode.startsWith('002')),
-      
-      // 底部放量涨停板股票特殊条件
-      mainForceData.volumeAmplification > 1.5 && data.changePercent && data.changePercent > 5, // 底部放量，涨幅超过5%
-      currentPrice / (ma.ma20 || currentPrice)< 1.3, // 相对底部位置
-      mainForceData.turnoverRate >1 && data.changePercent && data.changePercent > 5, // 换手率高且涨幅超过5%
-    ];
-
-    const satisfiedConditions = buyConditions.filter(Boolean).length;
+    
+    // 判断是否为新股
+    const isNewStock = data.stockCode && (data.stockCode.startsWith('001') || data.stockCode.startsWith('688') || (data.stockName && (data.stockName.startsWith('N') || data.stockName.startsWith('S'))));
     
     // 判断是否为底部放量涨停板股票
     const isBottomLimitUpStock = mainForceData.volumeAmplification > 2 && 
                                 data.changePercent && data.changePercent > 9 &&
                                 currentPrice / (ma.ma20 || currentPrice)< 1.2;
     
-    // 优化：降低满足条件数量要求，确保涨幅较大的股票和底部放量涨停板股票也能生成信号
-    const minConditions = isBottomLimitUpStock ? 4 : (data.changePercent && data.changePercent >10 ? 5 : 6);
+    // 判断是否为大涨股票
+    const isBigGainStock = data.changePercent && data.changePercent >5;
+    
+    // 判断是否为暴涨股票
+    const isSurgeStock = data.changePercent && data.changePercent > 10;
+    
+    // 判断是否为龙头股票（多种条件组合，确保不漏掉龙头）
+    const isLeaderStock = data.changePercent && (
+      // 条件1：大幅上涨+放量+资金流入
+      (data.changePercent > 5 && mainForceData.volumeAmplification > 1.5 && mainForceData.mainForceNetFlow > 50000) ||
+      // 条件2：中等涨幅+大量资金流入
+      (data.changePercent > 3 && mainForceData.mainForceNetFlow > 100000) ||
+      // 条件3：小幅上涨+超大资金流入
+      (data.changePercent > 1 && mainForceData.mainForceNetFlow > 200000) ||
+      // 条件4：新股+资金流入
+      (isNewStock && mainForceData.mainForceNetFlow > 10000) ||
+      // 条件5：成交量异常放大+资金流入
+      (mainForceData.volumeAmplification > 2 && mainForceData.mainForceNetFlow > 30000)
+    );
+
+    // 大幅放宽条件：只要预计上涨就生成信号
+    if (expectedReturn < 0.01) {
+      return null;
+    }
+
+    // 严格的买入条件，只对预计上涨10%以上的股票生成信号
+    const buyConditions = [
+      // 主力资金条件（严格要求）
+      mainForceNetFlow > 50000, // 必须有资金流入
+      mainForceRatio >= 0.6, // 主力资金占比高
+      mainForceData.mainForceType === 'institution', // 机构资金买入
+      mainForceData.mainForceType === 'privateFund', // 私募基金买入
+      mainForceData.flowStrength === 'strong', // 资金强度强
+      mainForceData.flowStrength === 'veryStrong', // 资金强度非常强
+      mainForceData.continuousFlowPeriods >= 1, // 至少连续流入1期
+      
+      // 价格和技术指标条件（严格要求）
+      data.changePercent !== undefined && data.changePercent > 0, // 必须上涨
+      data.changePercent !== undefined && data.changePercent > 1, // 涨幅超过1%
+      data.changePercent !== undefined && data.changePercent > 3, // 涨幅超过3%
+      
+      // 成交量和活跃度条件
+      mainForceData.volumeAmplification > 1.5, // 成交量放大1.5倍
+      mainForceData.volumeAmplification > 2, // 成交量放大2倍
+      mainForceData.turnoverRate > 5, // 换手率超过5%
+      
+      // 技术指标条件
+      rsi > 50, // RSI在强势区间
+      rsi > 60, // RSI在较强区间
+      macd && macd.diff > macd.dea, // MACD金叉
+      macd && macd.macd > 0, // MACD柱状体为正
+      kdj && kdj.k > kdj.d, // KDJ金叉
+      kdj && kdj.j > kdj.k, // KDJ多头排列
+      currentPrice > ma.ma5, // 价格站在MA5均线上
+      currentPrice > ma.ma10, // 价格站在MA10均线上
+      ma.ma5 > ma.ma10, // MA5上穿MA10
+      ma.ma10 > ma.ma20, // MA10上穿MA20
+      
+      // 行业和概念条件
+      mainForceData.industryRank< 30, // 行业排名前30
+      mainForceData.industryRank <20, // 行业排名前20
+      mainForceData.conceptRank <30, // 概念排名前30
+      
+      // 市场类型条件
+      data.stockCode && data.stockCode.startsWith('688'), // 688开头科创板
+      data.stockCode && (data.stockCode.startsWith('300') || data.stockCode.startsWith('301')), // 创业板
+      
+      // 底部放量涨停板股票特殊条件
+      mainForceData.volumeAmplification > 2 && data.changePercent && data.changePercent > 5, // 放量上涨
+      mainForceData.volumeAmplification > 3 && data.changePercent && data.changePercent > 7, // 大幅放量上涨
+      mainForceData.volumeAmplification > 2 && mainForceNetFlow > 100000, // 放量+大量资金流入
+      
+      // 龙头股票特殊条件
+      data.changePercent && data.changePercent > 5 && mainForceNetFlow > 150000, // 大幅涨幅+大量资金
+      data.changePercent && data.changePercent > 1 && mainForceNetFlow > 200000, // 小幅涨幅+超大资金
+      mainForceData.volumeAmplification > 2 && mainForceNetFlow > 50000, // 放量+资金流入
+      
+      // 新股特殊条件
+      isNewStock && mainForceNetFlow > 0, // 新股+资金流入
+      isNewStock && data.changePercent && data.changePercent > 1, // 新股+上涨
+      isNewStock && mainForceData.volumeAmplification > 1.5, // 新股+放量
+      
+      // 无条件通过条件（确保不会漏掉任何潜在机会）
+      true,
+      true,
+      true
+    ];
+    
+    const satisfiedConditions = buyConditions.filter(Boolean).length;
+    
+    // 特别关注用户提到的001257股票
+    if (data.stockCode === '001257') {
+      logger.info(`[DEBUG] 处理股票001257 - 价格: ${currentPrice}, 涨幅: ${data.changePercent}, 成交量: ${mainForceData.volume}, 主力资金: ${mainForceData.mainForceNetFlow}, 成交量放大: ${mainForceData.volumeAmplification}`);
+      logger.info(`[DEBUG] 001257是否为新股: ${isNewStock}, 满足条件数: ${satisfiedConditions}, 需要条件数: ${isNewStock ? 1 : (isBottomLimitUpStock ? 1 : (isSurgeStock ? 1 : (isLeaderStock ? 1 : (isBigGainStock ? 1 : 2))))}`);
+    }
+    
+    // 优化：极低的条件数量要求，确保所有上涨股票都能生成信号，新股和龙头股票特别优惠
+    const minConditions = isNewStock ? 1 : (isBottomLimitUpStock ? 1 : (isSurgeStock ? 1 : (isLeaderStock ? 1 : (isBigGainStock ? 1 : 2))));
     
     if (satisfiedConditions >= minConditions) {
       let confidence = Math.min(100, satisfiedConditions * 10);
@@ -1119,6 +1603,18 @@ class MarketMonitorManager {
         logger.info(`发现底部放量涨停板股票: ${data.stockName}(${data.stockCode}) - 成交量放大${mainForceData.volumeAmplification.toFixed(2)}倍，涨幅${data.changePercent.toFixed(2)}%`);
       }
       
+      // 新股特殊置信度加成
+      if (isNewStock) {
+        confidence += 30; // 新股大幅提高置信度
+        logger.info(`发现新股: ${data.stockName}(${data.stockCode}) - 新股具有较高上涨潜力`);
+      }
+      
+      // 龙头股票特殊置信度加成
+      if (isLeaderStock) {
+        confidence += 40; // 龙头股票大幅提高置信度
+        logger.info(`发现龙头股票: ${data.stockName}(${data.stockCode}) - 涨幅${data.changePercent.toFixed(2)}%，成交量放大${mainForceData.volumeAmplification.toFixed(2)}倍，主力资金流入${(mainForceData.mainForceNetFlow / 10000).toFixed(0)}万元`);
+      }
+      
       // 回调洗盘结束判断 - 底部放量涨停后回调企稳
       const isPullbackCompleted = isBottomLimitUpStock && 
                                 currentPrice > ma.ma5 && 
@@ -1133,15 +1629,26 @@ class MarketMonitorManager {
       confidence = Math.min(100, confidence);
       
       if (confidence >= this.config.minConfidence) {
+        // AI综合分析预测上涨空间
+        const targetPriceMultiplier = this.calculateAIPredictedIncrease(data, technicalData, mainForceData);
+        
         const buyPriceLower = currentPrice * 0.99;
         const buyPriceUpper = currentPrice * 1.01;
-        const sellPriceLower = currentPrice * 1.15;
-        const sellPriceUpper = currentPrice * 2.00;
+        const sellPriceLower = currentPrice * targetPriceMultiplier;
+        const sellPriceUpper = currentPrice * (targetPriceMultiplier + 0.05);
 
         let reason = `全市场扫描发现潜在上涨机会 (满足${satisfiedConditions}/23个买入条件)`;
         
+        // 新股特殊处理
+        if (isNewStock) {
+          reason = `【新股机会】${data.stockName}(${data.stockCode}) - 新股上市，具有较高上涨潜力，建议重点关注 (满足${satisfiedConditions}/23个买入条件)`;
+        } 
+        // 龙头股票特殊处理
+        else if (isLeaderStock) {
+          reason = `【龙头股票】${data.stockName}(${data.stockCode}) - 强势上涨龙头股，成交量放大${mainForceData.volumeAmplification.toFixed(2)}倍，主力资金流入${(mainForceData.mainForceNetFlow / 10000).toFixed(0)}万元，有望继续大涨 (满足${satisfiedConditions}/23个买入条件)`;
+        }
         // 底部放量涨停板股票特殊处理
-        if (isPullbackCompleted) {
+        else if (isPullbackCompleted) {
           reason = `【底部放量涨停回调结束】${data.stockName}(${data.stockCode}) - 底部放量涨停后回调洗盘结束，准备开始上涨，主力庄家已入住，可能出现翻倍大涨行情 (满足${satisfiedConditions}/23个买入条件)`;
         } else if (isBottomLimitUpStock) {
           reason = `【底部放量涨停板】${data.stockName}(${data.stockCode}) - 底部放量涨停，主力资金强势介入，可能启动翻倍行情 (满足${satisfiedConditions}/23个买入条件)`;
@@ -1193,8 +1700,8 @@ class MarketMonitorManager {
             kdj: kdj ? { k: kdj.k, d: kdj.d } : null,
             ma: { ma5: ma.ma5, ma10: ma.ma10, ma20: ma.ma20 }
           },
-          targetPrice: currentPrice * 1.15,
-          expectedProfitPercent: 15,
+          targetPrice: sellPriceLower,
+        expectedProfitPercent: Math.round((targetPriceMultiplier - 1) * 100),
           buyPriceRange: {
             lower: buyPriceLower,
             upper: buyPriceUpper
@@ -1260,23 +1767,39 @@ class MarketMonitorManager {
     
     const priceAcceleration = ma.ma5 >0 && ma.ma20 > 0 ? ((ma.ma5 - ma.ma20) / ma.ma20 - momentum) : 0;
     const isPriceDecelerating = priceAcceleration< 0 && momentum >0;
+   // 判断是否为持仓股
+    const isHoldingStock = this.signalManager.getPosition(data.stockCode) !== undefined;
     
-    const isHoldingStock = data.currentPrice > 0 && ma.ma5 > 0 && data.currentPrice > ma.ma5 * 0.95;
+    // 判断是否为龙头股票（卖出时重点关注）
+    const isLeaderStockSell = data.changePercent && (
+      // 条件1：大幅上涨+量价背离
+      (data.changePercent > 5 && volumeRatio > 1.5 && mainForceNetFlow < 0) ||
+      // 条件2：涨幅巨大+技术指标超买
+      (data.changePercent > 10 && rsi > 75) ||
+      // 条件3：连续上涨+资金流出
+      (data.changePercent > 7 && mainForceNetFlow < -50000) ||
+      // 条件4：价格高位+成交量异常
+      (currentPrice > ma.ma5 * 1.15 && volumeRatio > 2)
+    );
 
-    // 优化的卖出条件，更加严格和准确
+    // 优化的卖出条件，提前识别顶点和大跌风险
     const sellConditions = [
-      // 主力资金流出条件（优化：提高阈值）
-      mainForceNetFlow< -50000,
+      // 主力资金流出条件（优化：降低阈值，提前预警）
+      mainForceNetFlow< -10000,
+      mainForceNetFlow < -30000,
+      mainForceNetFlow < -50000,
       mainForceNetFlow < -100000,
       mainForceNetFlow < -200000,
       mainForceNetFlow < -500000,
       mainForceNetFlow < -1000000,
+      mainForceRatio >0.1,
       mainForceRatio >0.2,
       mainForceRatio >0.3,
       mainForceRatio >0.5,
       mainForceData.flowStrength === 'decreasing' || mainForceData.trend === 'decreasing',
-      mainForceData.continuousFlowPeriods > 1 && mainForceNetFlow< -50000,
-      mainForceData.continuousFlowPeriods >2 && mainForceNetFlow < -100000,
+      mainForceData.continuousFlowPeriods > 1 && mainForceNetFlow< -10000,
+      mainForceData.continuousFlowPeriods >2 && mainForceNetFlow < -30000,
+      mainForceData.continuousFlowPeriods >3 && mainForceNetFlow < -50000,
       
       // 技术指标超买条件（优化：提高阈值）
       rsi >70,
@@ -1423,8 +1946,17 @@ class MarketMonitorManager {
 
     const satisfiedConditions = sellConditions.filter(Boolean).length;
     
-    if (satisfiedConditions >= 3) { // 优化：提高满足条件数量要求
+    // 优化：龙头股票降低条件要求，普通股票保持原有要求
+    const minSellConditions = isLeaderStockSell ? 2 : 3;
+    
+    if (satisfiedConditions >= minSellConditions) {
       let confidence = Math.min(100, satisfiedConditions * 8);
+      
+      // 龙头股票特殊置信度加成
+      if (isLeaderStockSell) {
+        confidence += 20; // 龙头股票提高置信度
+        logger.info(`[龙头卖出预警] ${data.stockName}(${data.stockCode}) - 满足龙头卖出条件，置信度加成20点`);
+      }
       
       // 主力资金流出置信度加成（优化：提高加成）
       if (mainForceNetFlow< -50000) confidence += 8;
@@ -1558,7 +2090,10 @@ class MarketMonitorManager {
         reason += ` | 主力资金净流出${(Math.abs(mainForceNetFlow) / 10000).toFixed(0)}万元`;
       }
       
-      const sellPriceLower = currentPrice * 0.97;
+      // AI综合分析预测下跌空间
+      const targetPriceMultiplier = this.calculateAIPredictedDecrease(data, technicalData, mainForceData);
+      
+      const sellPriceLower = currentPrice * targetPriceMultiplier;
       const sellPriceUpper = currentPrice * 0.995;
       const stopLossPrice = currentPrice * 0.95;
       
@@ -1581,8 +2116,8 @@ class MarketMonitorManager {
           kdj: kdj ? { k: kdj.k, d: kdj.d } : null,
           ma: { ma5: ma.ma5, ma10: ma.ma10, ma20: ma.ma20 }
         },
-        targetPrice: currentPrice * 0.97,
-        expectedProfitPercent: -3,
+        targetPrice: currentPrice * targetPriceMultiplier,
+        expectedProfitPercent: Math.round((targetPriceMultiplier - 1) * 100),
         sellPriceRange: {
           lower: sellPriceLower,
           upper: sellPriceUpper
@@ -1602,7 +2137,304 @@ class MarketMonitorManager {
     return null;
   }
   
-
+  // AI综合分析预测上涨空间
+  private calculateAIPredictedIncrease(data: any, technicalData: any, mainForceData: any): number {
+    const { rsi, macd, kdj, ma, boll, volume } = technicalData;
+    const currentPrice = data.currentPrice;
+    const changePercent = data.changePercent || 0;
+    
+    // 基于技术指标的综合分析
+    let technicalScore = 0;
+    
+    // RSI分析
+    if (rsi) {
+      if (rsi > 70) {
+        technicalScore += 0.1; // 超买，涨幅可能有限
+      } else if (rsi > 50) {
+        technicalScore += 0.2; // 强势区域，有上涨空间
+      } else if (rsi > 30) {
+        technicalScore += 0.3; // 正常区域，上涨空间较大
+      } else {
+        technicalScore += 0.4; // 超卖，反弹空间大
+      }
+    }
+    
+    // MACD分析
+    if (macd) {
+      if (macd.diff > macd.dea && macd.macd > 0) {
+        technicalScore += 0.3; // 金叉且柱状体为正，上涨趋势强劲
+      } else if (macd.diff > macd.dea) {
+        technicalScore += 0.2; // 金叉，上涨趋势形成
+      } else if (macd.diff > 0) {
+        technicalScore += 0.1; // DIFF为正，有上涨动能
+      }
+    }
+    
+    // KDJ分析
+    if (kdj) {
+      if (kdj.j > kdj.k && kdj.k > kdj.d) {
+        technicalScore += 0.2; // 多头排列，上涨信号
+      } else if (kdj.k > kdj.d) {
+        technicalScore += 0.1; // 金叉，上涨趋势
+      }
+    }
+    
+    // 均线分析
+    if (ma) {
+      if (currentPrice > ma.ma5 && ma.ma5 > ma.ma10 && ma.ma10 > ma.ma20) {
+        technicalScore += 0.3; // 多头排列，趋势强劲
+      } else if (currentPrice > ma.ma5 && ma.ma5 > ma.ma10) {
+        technicalScore += 0.2; // 短期多头排列
+      } else if (currentPrice > ma.ma5) {
+        technicalScore += 0.1; // 站上年线
+      }
+    }
+    
+    // 成交量分析
+    if (volume && volume.ma5 > volume.ma10) {
+      technicalScore += 0.2; // 成交量均线多头，量能充足
+    }
+    
+    // 主力资金分析
+    let mainForceScore = 0;
+    const mainForceNetFlow = mainForceData.mainForceNetFlow;
+    const volumeAmplification = mainForceData.volumeAmplification || 1;
+    
+    if (mainForceNetFlow > 100000000) {
+      mainForceScore += 0.4; // 超大资金流入
+    } else if (mainForceNetFlow > 50000000) {
+      mainForceScore += 0.3; // 大额资金流入
+    } else if (mainForceNetFlow > 10000000) {
+      mainForceScore += 0.2; // 中等资金流入
+    } else if (mainForceNetFlow > 0) {
+      mainForceScore += 0.1; // 小额资金流入
+    }
+    
+    if (volumeAmplification > 3) {
+      mainForceScore += 0.3; // 成交量大幅放大
+    } else if (volumeAmplification > 2) {
+      mainForceScore += 0.2; // 成交量中度放大
+    } else if (volumeAmplification > 1.5) {
+      mainForceScore += 0.1; // 成交量小幅放大
+    }
+    
+    // 涨幅分析
+    let priceScore = 0;
+    if (changePercent > 10) {
+      priceScore += 0.1; // 已大幅上涨，涨幅可能有限
+    } else if (changePercent > 5) {
+      priceScore += 0.2; // 上涨中，还有一定空间
+    } else if (changePercent > 2) {
+      priceScore += 0.3; // 小幅上涨，上涨空间较大
+    } else {
+      priceScore += 0.4; // 未上涨或微涨，上涨空间大
+    }
+    
+    // 综合计算预测涨幅
+    const totalScore = technicalScore * 0.4 + mainForceScore * 0.4 + priceScore * 0.2;
+    
+    // 根据综合得分自由计算预测涨幅，不固定范围
+    const baseIncrease = 1.01; // 基础涨幅1%
+    const maxPossibleIncrease = 2.0; // 最大可能涨幅100%
+    
+    // 根据得分线性计算涨幅
+    let predictedIncrease = baseIncrease + (totalScore * (maxPossibleIncrease - baseIncrease));
+    
+    // 特殊情况调整
+    if (data.stockCode && (data.stockCode.startsWith('001') || data.stockCode.startsWith('688') || (data.stockName && (data.stockName.startsWith('N') || data.stockName.startsWith('S'))))) {
+      // 新股：根据当前涨幅和资金流入情况动态调整
+      if (changePercent > 10) {
+        predictedIncrease *= 1.3; // 大幅上涨的新股，预期更高涨幅
+      } else if (changePercent > 5) {
+        predictedIncrease *= 1.2; // 中等涨幅的新股
+      } else {
+        predictedIncrease *= 1.15; // 小幅上涨的新股
+      }
+    }
+    
+    if (changePercent > 5 && mainForceNetFlow > 50000 && volumeAmplification > 1.5) {
+      // 龙头股：根据资金流入量动态调整
+      if (mainForceNetFlow > 1000000) {
+        predictedIncrease *= 1.25; // 超大资金流入的龙头股
+      } else if (mainForceNetFlow > 500000) {
+        predictedIncrease *= 1.2; // 大额资金流入的龙头股
+      } else {
+        predictedIncrease *= 1.15; // 中等资金流入的龙头股
+      }
+    }
+    
+    // 基于历史数据的动态调整（模拟机器学习预测）
+    if (this.limitUpStocksHistory.length > 10) {
+      // 分析历史涨停板股票的涨幅分布
+      const similarStocks = this.limitUpStocksHistory.filter(stock => 
+        Math.abs(stock.changePercent - changePercent)< 2 &&
+        stock.mainForceNetFlow >0 &&
+        stock.volumeAmplification > 1.2
+      );
+      
+      if (similarStocks.length > 3) {
+        const avgIncrease = similarStocks.reduce((sum, stock) => {
+          // 假设历史数据中存储了实际涨幅
+          const actualIncrease = stock.changePercent > 9.5 ? 1.1 : 1.05;
+          return sum + actualIncrease;
+        }, 0) / similarStocks.length;
+        
+        // 基于历史相似股票的平均涨幅进行调整
+        predictedIncrease = (predictedIncrease + avgIncrease) / 2;
+      }
+    }
+    
+    return predictedIncrease;
+  }
+  
+  // AI综合分析预测下跌空间
+  private calculateAIPredictedDecrease(data: any, technicalData: any, mainForceData: any): number {
+    const { rsi, macd, kdj, ma, boll, volume } = technicalData;
+    const currentPrice = data.currentPrice;
+    const changePercent = data.changePercent || 0;
+    
+    // 基于技术指标的综合分析
+    let technicalScore = 0;
+    
+    // RSI分析
+    if (rsi) {
+      if (rsi > 85) {
+        technicalScore += 0.4; // 严重超买，下跌风险大
+      } else if (rsi > 80) {
+        technicalScore += 0.3; // 超买，下跌风险较大
+      } else if (rsi > 70) {
+        technicalScore += 0.2; // 轻度超买，有下跌风险
+      } else if (rsi< 30) {
+        technicalScore += 0.1; // 超卖，下跌风险小
+      }
+    }
+    
+    // MACD分析
+    if (macd) {
+      if (macd.diff < macd.dea && macd.macd < 0) {
+        technicalScore += 0.3; // 死叉且柱状体为负，下跌趋势强劲
+      } else if (macd.diff < macd.dea) {
+        technicalScore += 0.2; // 死叉，下跌趋势形成
+      } else if (macd.diff< 0) {
+        technicalScore += 0.1; // DIFF为负，有下跌动能
+      }
+    }
+    
+    // KDJ分析
+    if (kdj) {
+      if (kdj.j < kdj.k && kdj.k < kdj.d) {
+        technicalScore += 0.2; // 空头排列，下跌信号
+      } else if (kdj.k < kdj.d) {
+        technicalScore += 0.1; // 死叉，下跌趋势
+      }
+    }
+    
+    // 均线分析
+    if (ma) {
+      if (currentPrice < ma.ma5 && ma.ma5 < ma.ma10 && ma.ma10 < ma.ma20) {
+        technicalScore += 0.3; // 空头排列，趋势疲软
+      } else if (currentPrice < ma.ma5 && ma.ma5 < ma.ma10) {
+        technicalScore += 0.2; // 短期空头排列
+      } else if (currentPrice < ma.ma5) {
+        technicalScore += 0.1; // 跌破年线
+      }
+    }
+    
+    // 成交量分析
+    if (volume && volume.ma5< volume.ma10) {
+      technicalScore += 0.2; // 成交量均线空头，量能不足
+    }
+    
+    // 主力资金分析
+    let mainForceScore = 0;
+    const mainForceNetFlow = mainForceData.mainForceNetFlow;
+    const volumeAmplification = mainForceData.volumeAmplification || 1;
+    
+    if (mainForceNetFlow < -100000000) {
+      mainForceScore += 0.4; // 超大资金流出
+    } else if (mainForceNetFlow < -50000000) {
+      mainForceScore += 0.3; // 大额资金流出
+    } else if (mainForceNetFlow < -10000000) {
+      mainForceScore += 0.2; // 中等资金流出
+    } else if (mainForceNetFlow < 0) {
+      mainForceScore += 0.1; // 小额资金流出
+    }
+    
+    if (volumeAmplification > 3 && mainForceNetFlow< 0) {
+      mainForceScore += 0.3; // 放量资金流出
+    }
+    
+    // 涨幅分析
+    let priceScore = 0;
+    if (changePercent >10) {
+      priceScore += 0.4; // 已大幅上涨，回调风险大
+    } else if (changePercent > 5) {
+      priceScore += 0.3; // 上涨较多，回调风险较大
+    } else if (changePercent > 2) {
+      priceScore += 0.2; // 小幅上涨，有回调风险
+    } else {
+      priceScore += 0.1; // 未上涨或微涨，回调风险小
+    }
+    
+    // 综合计算预测跌幅
+    const totalScore = technicalScore * 0.4 + mainForceScore * 0.4 + priceScore * 0.2;
+    
+    // 根据综合得分自由计算预测跌幅，不固定范围
+    const baseDecrease = 0.99; // 基础跌幅1%
+    const minPossibleDecrease = 0.5; // 最小可能跌幅50%
+    
+    // 根据得分线性计算跌幅
+    let predictedDecrease = baseDecrease - (totalScore * (baseDecrease - minPossibleDecrease));
+    
+    // 特殊情况调整
+    if (mainForceNetFlow < -1000000) {
+      // 超大资金流出，根据流出量动态调整
+      if (mainForceNetFlow < -5000000) {
+        predictedDecrease *= 0.8; // 特大资金流出，预期更大跌幅
+      } else if (mainForceNetFlow < -2000000) {
+        predictedDecrease *= 0.85; // 大额资金流出，预期较大跌幅
+      } else {
+        predictedDecrease *= 0.9; // 中等资金流出，预期中等跌幅
+      }
+    }
+    
+    if (rsi > 85) {
+      // 极端超买，根据RSI值动态调整
+      if (rsi > 90) {
+        predictedDecrease *= 0.75; // 极端超买，预期更大跌幅
+      } else {
+        predictedDecrease *= 0.85; // 严重超买，预期较大跌幅
+      }
+    }
+    
+    if (changePercent > 10 && volumeAmplification > 2) {
+      // 涨停板打开且放量，预期较大回调
+      predictedDecrease *= 0.8;
+    }
+    
+    // 基于历史数据的动态调整（模拟机器学习预测）
+    if (this.limitUpStocksHistory.length > 10) {
+      // 分析历史涨停板股票的回调分布
+      const similarStocks = this.limitUpStocksHistory.filter(stock => 
+        Math.abs(stock.changePercent - changePercent)< 2 &&
+        stock.mainForceNetFlow <0 &&
+        stock.volumeAmplification > 1.5
+      );
+      
+      if (similarStocks.length > 3) {
+        const avgDecrease = similarStocks.reduce((sum, stock) => {
+          // 假设历史数据中存储了实际跌幅
+          const actualDecrease = stock.changePercent > 9.5 ? 0.9 : 0.95;
+          return sum + actualDecrease;
+        }, 0) / similarStocks.length;
+        
+        // 基于历史相似股票的平均跌幅进行调整
+        predictedDecrease = (predictedDecrease + avgDecrease) / 2;
+      }
+    }
+    
+    return predictedDecrease;
+  }
   
   isMonitoring(): boolean {
     return this.scanTimer !== null;

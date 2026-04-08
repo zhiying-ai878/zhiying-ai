@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>腾讯备选CORS数据源测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>腾讯备选CORS数据源测试</h1>
+    <div>
+        <button onclick="testTencentKline()">测试腾讯K线接口</button>
+        <button onclick="testTencentRealtime()">测试腾讯实时行情</button>
+        <button onclick="testAll()">测试所有</button>
+    </div>
+    <div id="results"></div>
+
+    <script>
+        function addResult(message, isSuccess) {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'result ' + (isSuccess ? 'success' : 'error');
+            div.textContent = message;
+            resultsDiv.appendChild(div);
+        }
+
+        async function testTencentKline() {
+            addResult('开始测试腾讯K线接口...', true);
+            try {
+                const response = await fetch('https://web.ifzq.gtimg.cn/appstock/app/kline/kline?param=sh600519,day,2024-01-01,2024-12-31,640', {
+                    headers: {
+                        'Referer': 'https://finance.qq.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
+                const data = await response.json();
+                addResult('腾讯K线接口测试成功! 数据包含K线记录数: ' + data.data.sh600519.day.length, true);
+            } catch (error) {
+                addResult('腾讯K线接口测试失败: ' + error.message, false);
+            }
+        }
+
+        async function testTencentRealtime() {
+            addResult('开始测试腾讯实时行情...', true);
+            try {
+                const response = await fetch('https://qt.gtimg.cn/q=sh600519,sz002594', {
+                    headers: {
+                        'Referer': 'https://finance.qq.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    }
+                });
+                const data = await response.text();
+                addResult('腾讯实时行情测试成功! 响应长度: ' + data.length, true);
+            } catch (error) {
+                addResult('腾讯实时行情测试失败: ' + error.message, false);
+            }
+        }
+
+        async function testAll() {
+            document.getElementById('results').innerHTML = '';
+            await testTencentRealtime();
+            await testTencentKline();
+        }
+    </script>
+</body>
+</html>

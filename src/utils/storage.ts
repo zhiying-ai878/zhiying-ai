@@ -166,12 +166,34 @@ export const getTradeHistory = (): Array<{
   return history || [];
 };
 
+// 获取当前用户
+const getCurrentUser = (): string | null => {
+  try {
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (currentUserStr) {
+      const currentUser = JSON.parse(currentUserStr);
+      return currentUser.username || null;
+    }
+    return null;
+  } catch (error) {
+    console.error('获取当前用户失败:', error);
+    return null;
+  }
+};
+
+// 获取用户特定的存储key
+const getUserStorageKey = (baseKey: string): string => {
+  const username = getCurrentUser();
+  return username ? `${baseKey}_${username}` : baseKey;
+};
+
 // 存储自选股票
 export const saveWatchlist = (stocks: Array<{
   code: string;
   name: string;
 }>): boolean => {
-  return setStorageItem('watchlist', stocks);
+  const key = getUserStorageKey('watchlist');
+  return setStorageItem(key, stocks);
 };
 
 // 获取自选股票
@@ -179,10 +201,11 @@ export const getWatchlist = (): Array<{
   code: string;
   name: string;
 }> => {
+  const key = getUserStorageKey('watchlist');
   const watchlist = getStorageItem<Array<{
     code: string;
     name: string;
-  }>>('watchlist');
+  }>>(key);
   return watchlist || [];
 };
 

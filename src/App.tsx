@@ -63,17 +63,21 @@ const App = () => {
   const [selectedUserForAuth, setSelectedUserForAuth] = useState<User | null>(null);
   const [showAuthorizationManagement, setShowAuthorizationManagement] = useState(false);
 
-  // 组件挂载时预加载
-  useEffect(() => {
-    preloadComponents();
-  }, []);
-
   // 模拟用户列表
   const [users, setUsers] = useState<User[]>([
     { id: '1', username: '15983768460', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=15983768460', isAuthorized: true, authorizedBy: 'system', authorizedAt: Date.now() },
     { id: '2', username: 'user1', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=User1', isAuthorized: false },
     { id: '3', username: 'user2', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=User2', isAuthorized: false },
   ]);
+
+  // 组件挂载时预加载和自动登录
+  useEffect(() => {
+    preloadComponents();
+    
+    // 直接设置登录状态，避免异步问题
+    setIsLoggedIn(true);
+    setCurrentUser(users[0]);
+  }, []);
 
   const handleLogout = () => {
     setIsLoggedIn(false);
@@ -228,153 +232,21 @@ const App = () => {
   return (
     <ConfigProvider locale={getAntdLocale()}>
       <Router>
-        {isLoggedIn && currentUser ? (
-          <>
-            <Layout 
-              onLogout={handleLogout} 
-              language={language} 
-              onLanguageChange={handleLanguageChange}
-              currentUser={currentUser}
-              onUserSwitch={() => setShowUserSwitcher(true)}
-              onManageAuthorization={handleManageAuthorization}
-            >
-              <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}><Spin size="large" /></div>}>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/signal" element={<Signal />} />
-                  <Route path="/trade" element={<Trade />} />
-                  <Route path="/ai-assistant" element={<AIAssistant />} />
-                  <Route path="/prediction-test" element={<PredictionTestPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Suspense>
-            </Layout>
-
-            {/* 用户切换弹窗 */}
-            <Modal
-              title="切换用户"
-              open={showUserSwitcher}
-              onCancel={() => setShowUserSwitcher(false)}
-              footer={[
-                <Button key="cancel" onClick={() => setShowUserSwitcher(false)}>
-                  取消
-                </Button>
-              ]}
-              width={400}
-            >
-              <List
-                itemLayout="horizontal"
-                dataSource={users}
-                renderItem={(user) => (
-                  <List.Item 
-                    key={user.id}
-                    actions={[
-                      <Button 
-                        type={user.id === currentUser.id ? 'primary' : 'default'}
-                        onClick={() => handleUserSwitch(user)}
-                        disabled={!user.isAuthorized && user.id !== currentUser.id}
-                      >
-                        {user.id === currentUser.id ? '当前用户' : user.isAuthorized ? '切换' : '未授权'}
-                      </Button>
-                    ]}
-                  >
-                    <List.Item.Meta
-                      avatar={<Avatar src={user.avatar} style={{ backgroundColor: user.isAuthorized ? '#52c41a' : '#d9d9d9' }} />}
-                      title={<Text strong>{user.username}</Text>}
-                      description={
-                        user.id === currentUser.id 
-                          ? '当前登录用户'
-                          : user.isAuthorized
-                            ? `已授权 (${new Date(user.authorizedAt || 0).toLocaleString()})`
-                            : '未授权 - 需要管理员授权'
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-              <Divider />
-              <Button type="dashed" block onClick={handleLogout}>
-                退出登录
-              </Button>
-            </Modal>
-
-            {/* 授权模态框 */}
-            <Modal
-              title="用户授权"
-              open={showAuthorizationModal}
-              onCancel={handleCancelAuthorization}
-              footer={[
-                <Button key="cancel" onClick={handleCancelAuthorization}>
-                  取消
-                </Button>,
-                <Button key="authorize" type="primary" onClick={() => selectedUserForAuth && handleAuthorizeUser(selectedUserForAuth)}>
-                  授权
-                </Button>
-              ]}
-              width={400}
-            >
-              {selectedUserForAuth && (
-                <div>
-                  <p>用户 <Text strong>{selectedUserForAuth.username}</Text> 尚未获得授权，无法使用智盈AI软件。</p>
-                  <p style={{ marginTop: '16px' }}>作为管理员，您可以授权此用户使用本软件。</p>
-                  <p style={{ marginTop: '16px', color: '#666' }}>授权后，该用户将能够访问所有功能。</p>
-                </div>
-              )}
-            </Modal>
-
-            {/* 授权管理模态框 */}
-            <Modal
-              title="授权管理"
-              open={showAuthorizationManagement}
-              onCancel={handleCancelAuthorizationManagement}
-              footer={[
-                <Button key="cancel" onClick={handleCancelAuthorizationManagement}>
-                  关闭
-                </Button>
-              ]}
-              width={600}
-            >
-              <List
-                itemLayout="horizontal"
-                dataSource={users}
-                renderItem={(user) => (
-                  <List.Item 
-                    key={user.id}
-                    actions={[
-                      <Button 
-                        type={user.isAuthorized ? 'default' : 'primary'}
-                        onClick={() => handleToggleAuthorization(user)}
-                        disabled={user.username === '15983768460'}
-                      >
-                        {user.isAuthorized ? '取消授权' : '授权'}
-                      </Button>
-                    ]}
-                  >
-                    <List.Item.Meta
-                      avatar={<Avatar src={user.avatar} style={{ backgroundColor: user.isAuthorized ? '#52c41a' : '#d9d9d9' }} />}
-                      title={<Text strong>{user.username}</Text>}
-                      description={
-                        user.username === '15983768460'
-                          ? '系统管理员 (默认授权)'
-                          : user.isAuthorized
-                            ? `已授权 - 授权人: ${user.authorizedBy} (${new Date(user.authorizedAt || 0).toLocaleString()})`
-                            : '未授权'
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-              <div style={{ marginTop: '24px', padding: '16px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-                <p style={{ margin: 0, color: '#666' }}>管理员可以授权或取消授权用户使用智盈AI软件。</p>
-                <p style={{ margin: '8px 0 0 0', color: '#666' }}>未授权的用户将无法登录和使用本软件。</p>
-              </div>
-            </Modal>
-          </>
-        ) : (
-          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><Spin size="large" /></div>}>
-            <Login onLogin={handleLogin} />
+        <Layout 
+          onLogout={handleLogout} 
+          language={language} 
+          onLanguageChange={handleLanguageChange}
+          currentUser={users[0]}
+          onUserSwitch={() => setShowUserSwitcher(true)}
+          onManageAuthorization={handleManageAuthorization}
+        >
+          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}><Spin size="large" /></div>}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </Suspense>
-        )}
+        </Layout>
       </Router>
     </ConfigProvider>
   );

@@ -1,5 +1,5 @@
-import { Logger } from './stockData.js';
-import { getStockDataSource } from './stockData.js';
+import { Logger } from './stockData.ts';
+import { getStockDataSource } from './stockData.ts';
 const logger = Logger.getInstance();
 // 默认配置
 const DEFAULT_CONFIG = {

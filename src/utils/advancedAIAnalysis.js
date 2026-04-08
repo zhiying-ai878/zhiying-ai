@@ -165,8 +165,21 @@ export class AdvancedAIAssistant {
             writable: true,
             value: new Map()
         });
+        Object.defineProperty(this, "learningMemory", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: []
+        });
+        Object.defineProperty(this, "systemSettings", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: new Map()
+        });
         this.neuralNetwork = new EnhancedNeuralNetwork(20, [64, 32, 16], 5);
         this.initializeTrainingData();
+        this.initializeSystemSettings();
     }
     initializeTrainingData() {
         const trainingData = [
@@ -179,6 +192,87 @@ export class AdvancedAIAssistant {
         for (let i = 0; i < 100; i++) {
             this.neuralNetwork.train(trainingData);
         }
+    }
+    initializeSystemSettings() {
+        // 初始化系统设置，包含最新的信号生成条件和配置
+        this.systemSettings.set('signalConditions', {
+            buy: {
+                expectedIncrease: 5, // 预期涨幅要求：5%
+                mainForceNetFlow: {
+                    high: 50000,
+                    medium: 20000,
+                    low: 10000,
+                    minimum: 1000
+                },
+                stockActivity: {
+                    volumeAmplification: 1.1, // 成交量放大1.1倍
+                    turnoverRate: 1, // 换手率1%
+                    fundFlow: 50000, // 资金流动5万
+                    requiredConditions: 1 // 只需满足一个条件
+                },
+                minConfidence: 10 // 最低置信度要求
+            },
+            sell: {
+                mainForceNetFlow: {
+                    high: 100000,
+                    medium: 50000,
+                    low: 20000,
+                    minimum: 2000
+                },
+                minConfidence: 10
+            }
+        });
+        this.systemSettings.set('systemFeatures', {
+            stockList: {
+                source: 'local_file',
+                count: 11999,
+                includes: ['上海A股', '深圳主板', '创业板']
+            },
+            dataSources: {
+                primary: 'sina',
+                backups: ['tencent', 'eastmoney', 'xueqiu', 'ths'],
+                autoFailover: true
+            },
+            scanInterval: {
+                marketOpen: 5000, // 5秒
+                marketClose: 300000 // 5分钟
+            },
+            monitoring: {
+                enabled: true,
+                batchSize: 200,
+                maxSignalsPerScan: 200
+            }
+        });
+    }
+    // 学习记忆功能
+    learnFromInteraction(input, output) {
+        this.learningMemory.push({
+            input,
+            output,
+            timestamp: Date.now()
+        });
+        // 保持记忆在合理范围内
+        if (this.learningMemory.length > 1000) {
+            this.learningMemory.shift();
+        }
+    }
+    // 搜索系统设置
+    searchSystemSettings(keyword) {
+        const lowerKeyword = keyword.toLowerCase();
+        const results = [];
+        this.systemSettings.forEach((value, key) => {
+            if (key.toLowerCase().includes(lowerKeyword)) {
+                results.push({ setting: key, value });
+            }
+            if (typeof value === 'object' && value !== null) {
+                Object.entries(value).forEach(([subKey, subValue]) => {
+                    if (subKey.toLowerCase().includes(lowerKeyword)) {
+                        results.push({ setting: `${key}.${subKey}`, value: subValue });
+                    }
+                });
+            }
+        });
+        return results;
     }
     // 自然语言处理和命令识别
     parseCommand(question) {
@@ -317,6 +411,13 @@ export class AdvancedAIAssistant {
     // 生成AI响应
     generateResponse(question, command, signalManager, marketMonitor) {
         const requiresExecution = command.type === 'execute_trade' || command.type === 'set_alerts';
+        // 先搜索系统设置，看看用户是否询问系统相关问题
+        const settingResults = this.searchSystemSettings(question);
+        if (settingResults.length > 0) {
+            const response = this.generateSettingResponse(settingResults);
+            this.learnFromInteraction(question, response.response);
+            return response;
+        }
         switch (command.type) {
             case 'monitor_market':
                 return this.generateMarketMonitoringResponse(marketMonitor);
@@ -337,12 +438,54 @@ export class AdvancedAIAssistant {
             case 'get_help':
                 return this.generateHelpResponse();
             default:
+                // 尝试从学习记忆中寻找相似问题的回答
+                const learnedResponse = this.findLearnedResponse(question);
+                if (learnedResponse) {
+                    this.learnFromInteraction(question, learnedResponse);
+                    return {
+                        response: learnedResponse,
+                        confidence: 75,
+                        requiresExecution: false
+                    };
+                }
                 return {
                     response: '抱歉，我无法理解您的问题。请尝试使用更清晰的语言描述您的需求。',
                     confidence: 50,
                     requiresExecution: false
                 };
         }
+    }
+    // 生成系统设置响应
+    generateSettingResponse(settings) {
+        let response = '根据系统最新设置：\n\n';
+        settings.forEach((setting, index) => {
+            response += `${index + 1}. ${setting.setting}：\n`;
+            if (typeof setting.value === 'object' && setting.value !== null) {
+                Object.entries(setting.value).forEach(([key, value]) => {
+                    response += `   • ${key}：${JSON.stringify(value)}\n`;
+                });
+            }
+            else {
+                response += `   ${setting.value}\n`;
+            }
+            response += '\n';
+        });
+        return {
+            response,
+            confidence: 95,
+            requiresExecution: false
+        };
+    }
+    // 从学习记忆中查找相似问题的回答
+    findLearnedResponse(question) {
+        const lowerQuestion = question.toLowerCase();
+        for (const memory of this.learningMemory) {
+            const lowerInput = memory.input.toLowerCase();
+            if (lowerInput.includes(lowerQuestion) || lowerQuestion.includes(lowerInput)) {
+                return memory.output;
+            }
+        }
+        return null;
     }
     generateMarketMonitoringResponse(marketMonitor) {
         if (marketMonitor && typeof marketMonitor.getMarketStatus === 'function') {
@@ -367,11 +510,13 @@ export class AdvancedAIAssistant {
         }
     }
     generateBuySignalResponse(signalManager) {
+        const signalConditions = this.systemSettings.get('signalConditions');
+        const buyConditions = signalConditions?.buy || {};
         if (signalManager && typeof signalManager.getSignalHistory === 'function') {
             const signals = signalManager.getSignalHistory().filter((s) => s.type === 'buy');
             if (signals.length === 0) {
                 return {
-                    response: '目前没有买入信号。系统需要满足以下条件才会生成买入信号：\n• 主力资金净流入>50万且预期涨幅≥15%\n• 技术指标和资金流向综合分析\n• 达到置信度要求（≥50%）',
+                    response: `目前没有买入信号。根据系统最新设置，买入信号需要满足以下条件：\n• 主力资金净流入：最低${(buyConditions.mainForceNetFlow?.minimum || 1000) / 10000}万元\n• 预期涨幅要求：${buyConditions.expectedIncrease || 5}%\n• 股票活跃度：满足${buyConditions.stockActivity?.requiredConditions || 1}个条件（成交量放大${buyConditions.stockActivity?.volumeAmplification || 1.1}倍、换手率${buyConditions.stockActivity?.turnoverRate || 1}%、资金流动${(buyConditions.stockActivity?.fundFlow || 50000) / 10000}万元）\n• 达到置信度要求：≥${buyConditions.minConfidence || 10}%`,
                     confidence: 85,
                     requiresExecution: false
                 };
@@ -383,7 +528,7 @@ export class AdvancedAIAssistant {
 • 当前价格：${latestSignal.price?.toFixed(2) || '未知'}元
 • 置信度：${latestSignal.confidence.toFixed(1)}%
 • 信号时间：${new Date(latestSignal.timestamp).toLocaleString()}
-• 主力资金净流入：${(latestSignal.mainForceFlow || 0) / 100000000}亿元
+• 主力资金净流入：${(latestSignal.mainForceFlow || 0) / 10000}万元
 • 预期涨幅：${latestSignal.expectedProfitPercent ? latestSignal.expectedProfitPercent.toFixed(1) + '%' : '未知'}
 • 信号理由：${latestSignal.reason}`,
                 confidence: 95,
@@ -399,11 +544,13 @@ export class AdvancedAIAssistant {
         }
     }
     generateSellSignalResponse(signalManager) {
+        const signalConditions = this.systemSettings.get('signalConditions');
+        const sellConditions = signalConditions?.sell || {};
         if (signalManager && typeof signalManager.getSignalHistory === 'function') {
             const signals = signalManager.getSignalHistory().filter((s) => s.type === 'sell');
             if (signals.length === 0) {
                 return {
-                    response: '目前没有卖出信号。系统需要满足以下条件才会生成卖出信号：\n• 主力资金净流出>300万\n• 技术指标显示卖出信号\n• 达到置信度要求（≥50%）',
+                    response: `目前没有卖出信号。根据系统最新设置，卖出信号需要满足以下条件：\n• 主力资金净流出：最低${(sellConditions.mainForceNetFlow?.minimum || 2000) / 10000}万元\n• 技术指标显示卖出信号\n• 达到置信度要求：≥${sellConditions.minConfidence || 10}%`,
                     confidence: 85,
                     requiresExecution: false
                 };
@@ -415,7 +562,7 @@ export class AdvancedAIAssistant {
 • 当前价格：${latestSignal.price?.toFixed(2) || '未知'}元
 • 置信度：${latestSignal.confidence.toFixed(1)}%
 • 信号时间：${new Date(latestSignal.timestamp).toLocaleString()}
-• 主力资金净流出：${Math.abs(latestSignal.mainForceFlow || 0) / 100000000}亿元
+• 主力资金净流出：${Math.abs(latestSignal.mainForceFlow || 0) / 10000}万元
 • 信号理由：${latestSignal.reason}`,
                 confidence: 95,
                 requiresExecution: false
@@ -523,7 +670,7 @@ export class AdvancedAIAssistant {
     }
     generateHelpResponse() {
         return {
-            response: '智盈AI助手功能说明：\n\n1. 市场监控："系统是否在监控市场？"\n2. 买入信号："有买入信号吗？"\n3. 卖出信号："有卖出信号吗？"\n4. 股票分析："分析股票600000"\n5. 市场状态："当前市场状态如何？"\n6. 交易执行："买入股票600000，价格10元，数量100股"\n7. 持仓查询："我的持仓情况"\n8. 价格提醒："设置股票600000价格提醒"\n\n您可以使用自然语言提问，我会智能识别您的需求。',
+            response: '智盈AI助手功能说明：\n\n📊 市场监控相关：\n• "系统是否在监控市场？"\n• "当前市场状态如何？"\n• "监控了多少只股票？"\n\n📈 信号查询相关：\n• "有买入信号吗？"\n• "有卖出信号吗？"\n• "最新的买入信号是什么？"\n\n🔍 股票分析相关：\n• "分析股票600000"\n• "股票600000的行情如何？"\n\n⚙️ 系统设置相关（新增功能）：\n• "系统的信号生成条件是什么？"\n• "买入信号需要什么条件？"\n• "主力资金净流入要求多少？"\n• "预期涨幅要求多少？"\n• "股票活跃度要求是什么？"\n\n💡 其他功能：\n• "执行交易：买入股票600000，价格10元，数量100股"\n• "我的持仓情况"\n• "设置股票600000价格提醒"\n\n🎯 学习能力：\n• AI助手具有学习记忆功能，会记住您的问题和回答\n• 自动搜索系统最新设置，确保回答的准确性\n• 不会乱回答问题，基于系统真实配置回答',
             confidence: 95,
             requiresExecution: false
         };

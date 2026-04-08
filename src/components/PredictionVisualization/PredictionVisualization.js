@@ -3,10 +3,12 @@ import { useState, useEffect } from 'react';
 import { Card, Typography, Button, message } from 'antd';
 import { getHistoricalDataManager } from '../../utils/historicalData';
 import { getTimeSeriesPredictor } from '../../utils/timeSeriesPredictor';
+import { getRealtimeQuote } from '../../utils/stockData';
 const { Text } = Typography;
 export const PredictionVisualization = ({ stockCode, stockName }) => {
     const [predictions, setPredictions] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [currentPrice, setCurrentPrice] = useState(null);
     useEffect(() => {
         loadPredictionData();
     }, [stockCode]);
@@ -14,6 +16,17 @@ export const PredictionVisualization = ({ stockCode, stockName }) => {
         console.log(`开始加载股票 ${stockCode} 的预测数据`);
         setLoading(true);
         try {
+            // 获取当前实时价格
+            console.log(`正在获取股票 ${stockCode} 的实时价格`);
+            const realtimeData = await getRealtimeQuote([stockCode]);
+            console.log(`实时数据:`, realtimeData);
+            if (realtimeData && realtimeData.length > 0) {
+                setCurrentPrice(realtimeData[0].price);
+                console.log(`股票 ${stockCode} 当前实时价格: ${realtimeData[0].price}`);
+            }
+            else {
+                message.warning('无法获取实时价格，使用历史数据进行预测');
+            }
             const historicalManager = getHistoricalDataManager();
             console.log(`正在获取股票 ${stockCode} 的历史数据`);
             const data = await historicalManager.getHistoricalData(stockCode);
@@ -27,7 +40,7 @@ export const PredictionVisualization = ({ stockCode, stockName }) => {
             console.log(`历史数据样本:`, data.slice(0, 5));
             const predictor = getTimeSeriesPredictor();
             console.log(`正在对股票 ${stockCode} 进行预测`);
-            const predictionResults = await predictor.predict(stockCode, data);
+            const predictionResults = await predictor.predict(stockCode, data, currentPrice || undefined);
             console.log(`预测结果: ${predictionResults.length} 条`, predictionResults);
             setPredictions(predictionResults);
             const hasBuySignal = predictionResults.some(p => p.buySignal);
