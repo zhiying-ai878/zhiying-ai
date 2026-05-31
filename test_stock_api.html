@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>股票API测试</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+</head>
+<body>
+    <h1>股票API测试</h1>
+    <button onclick="testEastMoneyAPI()">测试东方财富API</button>
+    <button onclick="testSinaAPI()">测试新浪API</button>
+    <button onclick="testTencentAPI()">测试腾讯API</button>
+    <div id="result"></div>
+
+    <script>
+        function log(message) {
+            document.getElementById('result').innerHTML += message + '<br>';
+        }
+
+        async function testEastMoneyAPI() {
+            log('=== 测试东方财富API ===');
+            try {
+                const code = '300480';
+                const secid = code.startsWith('6') ? `1.${code}` : `0.${code}`;
+                
+                const response = await axios.get('https://push2.eastmoney.com/api/qt/stock/get', {
+                    params: {
+                        secid,
+                        fields: 'f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f57,f58,f60,f107,f116,f117,f127',
+                        _: Date.now().toString()
+                    },
+                    headers: {
+                        'Referer': 'https://quote.eastmoney.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Upgrade-Insecure-Requests': '1'
+                    },
+                    timeout: 5000
+                });
+                
+                log('东方财富API响应状态: ' + response.status);
+                log('东方财富API响应数据: ' + JSON.stringify(response.data, null, 2));
+                
+                if (response.data && response.data.data) {
+                    const data = response.data.data;
+                    const price = data.f43 / 100;
+                    log('股票名称: ' + data.f58);
+                    log('当前价格: ' + price);
+                }
+                
+            } catch (error) {
+                log('东方财富API错误: ' + error.message);
+                if (error.response) {
+                    log('错误响应状态: ' + error.response.status);
+                    log('错误响应数据: ' + JSON.stringify(error.response.data, null, 2));
+                }
+            }
+        }
+
+        async function testSinaAPI() {
+            log('=== 测试新浪API ===');
+            try {
+                const code = '300480';
+                const sinaCode = code.startsWith('6') ? `sh${code}` : `sz${code}`;
+                
+                const response = await axios.get(`https://hq.sinajs.cn/list=${sinaCode}`, {
+                    timeout: 5000
+                });
+                
+                log('新浪API响应状态: ' + response.status);
+                log('新浪API响应数据: ' + response.data);
+                
+            } catch (error) {
+                log('新浪API错误: ' + error.message);
+                if (error.response) {
+                    log('错误响应状态: ' + error.response.status);
+                }
+            }
+        }
+
+        async function testTencentAPI() {
+            log('=== 测试腾讯API ===');
+            try {
+                const code = '300480';
+                const tencentCode = code.startsWith('6') ? `sh${code}` : `sz${code}`;
+                
+                const response = await axios.get(`https://qt.gtimg.cn/q=${tencentCode}`, {
+                    timeout: 5000
+                });
+                
+                log('腾讯API响应状态: ' + response.status);
+                log('腾讯API响应数据: ' + response.data);
+                
+            } catch (error) {
+                log('腾讯API错误: ' + error.message);
+                if (error.response) {
+                    log('错误响应状态: ' + error.response.status);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

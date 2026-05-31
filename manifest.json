@@ -1,0 +1,13 @@
+{
+  "name": "智盈AI - 智能投资助手",
+  "short_name": "智盈AI",
+  "description": "基于AI的智能投资分析和决策助手",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1890ff",
+  "icons": [],
+  "orientation": "portrait",
+  "categories": ["finance", "productivity", "utilities"],
+  "shortcuts": []
+}

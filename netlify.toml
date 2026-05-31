@@ -1,0 +1,20 @@
+[build]
+  publish = "dist"
+  command = ""
+
+[dev]
+  command = "npm run dev"
+  port = 5173
+
+[headers]
+  [[headers.values]]
+    for = "/*"
+    [headers.values.headers]
+      Cache-Control = "public, max-age=0, must-revalidate"
+      X-Frame-Options = "DENY"
+      X-Content-Type-Options = "nosniff"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React测试</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="test-root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        function TestComponent() {
+            const [count, setCount] = useState(0);
+            return (
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                    <h1>React测试页面</h1>
+                    <p>计数: {count}</p>
+                    <button onClick={() => setCount(count + 1)}>增加</button>
+                    <button onClick={() => setCount(count - 1)}>减少</button>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('test-root')).render(
+            <React.StrictMode>
+                <TestComponent />
+            </React.StrictMode>
+        );
+    </script>
+</body>
+</html>

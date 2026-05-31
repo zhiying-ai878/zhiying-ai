@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>详细股票API测试</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
+</head>
+<body>
+    <h1>详细股票API测试</h1>
+    <button onclick="testCompleteFlow()">测试完整数据流程</button>
+    <div id="result"></div>
+
+    <script>
+        function log(message) {
+            document.getElementById('result').innerHTML += message + '<br>';
+        }
+
+        // 模拟数据验证逻辑
+        function isValidStockQuote(quote) {
+            if (!quote || typeof quote !== 'object') {
+                log('数据验证失败: 无效对象');
+                return false;
+            }
+
+            // 验证必需字段
+            const requiredFields = ['code', 'name', 'price', 'open', 'high', 'low', 'close', 'volume', 'amount'];
+            for (const field of requiredFields) {
+                if (!(field in quote)) {
+                    log(`数据验证失败: 缺少字段 ${field}`);
+                    return false;
+                }
+            }
+
+            // 验证价格字段
+            const priceFields = ['price', 'open', 'high', 'low', 'close'];
+            for (const field of priceFields) {
+                const value = quote[field];
+                if (typeof value !== 'number' || isNaN(value) || value < 0) {
+                    log(`数据验证失败: ${field} 不是有效数字: ${value}`);
+                    return false;
+                }
+            }
+
+            // 验证成交量和成交额
+            if (typeof quote.volume !== 'number' || isNaN(quote.volume) || quote.volume < 0) {
+                log(`数据验证失败: volume 不是有效数字: ${quote.volume}`);
+                return false;
+            }
+            if (typeof quote.amount !== 'number' || isNaN(quote.amount) || quote.amount < 0) {
+                log(`数据验证失败: amount 不是有效数字: ${quote.amount}`);
+                return false;
+            }
+
+            return true;
+        }
+
+        async function testCompleteFlow() {
+            log('=== 测试完整数据流程 ===');
+            
+            // 测试东方财富API
+            log('\n--- 测试东方财富API ---');
+            try {
+                const code = '300480';
+                const secid = code.startsWith('6') ? `1.${code}` : `0.${code}`;
+                
+                const response = await axios.get('https://push2.eastmoney.com/api/qt/stock/get', {
+                    params: {
+                        secid,
+                        fields: 'f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f57,f58,f60,f107,f116,f117,f127',
+                        _: Date.now().toString()
+                    },
+                    headers: {
+                        'Referer': 'https://quote.eastmoney.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Upgrade-Insecure-Requests': '1'
+                    },
+                    timeout: 10000
+                });
+                
+                log('东方财富API响应状态: ' + response.status);
+                
+                if (response.data && response.data.data) {
+                    const data = response.data.data;
+                    log('API返回原始数据: ' + JSON.stringify(data, null, 2));
+                    
+                    // 转换为标准格式
+                    const quote = {
+                        code: code,
+                        name: data.f58 || `股票${code}`,
+                        price: data.f43 / 100,
+                        open: data.f46 / 100,
+                        high: data.f44 / 100,
+                        low: data.f45 / 100,
+                        close: data.f60 / 100,
+                        volume: data.f47,
+                        amount: data.f48
+                    };
+                    
+                    log('转换后的数据: ' + JSON.stringify(quote, null, 2));
+                    
+                    // 验证数据
+                    const isValid = isValidStockQuote(quote);
+                    log('数据验证结果: ' + (isValid ? '通过' : '失败'));
+                    
+                    if (isValid) {
+                        log('股票名称: ' + quote.name);
+                        log('当前价格: ' + quote.price);
+                        log('成交量: ' + quote.volume);
+                        log('成交额: ' + quote.amount);
+                    }
+                } else {
+                    log('东方财富API返回空数据');
+                }
+                
+            } catch (error) {
+                log('东方财富API错误: ' + error.message);
+                if (error.response) {
+                    log('错误响应状态: ' + error.response.status);
+                    log('错误响应数据: ' + JSON.stringify(error.response.data, null, 2));
+                } else if (error.request) {
+                    log('网络请求错误: 没有收到响应');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
