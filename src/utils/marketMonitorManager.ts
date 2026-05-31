@@ -464,6 +464,8 @@ class MarketMonitorManager {
     const timestamp = new Date().toLocaleString('zh-CN');
     
     try {
+      logger.info(`[${timestamp}] [持仓扫描] 开始处理持仓股票: ${quote.name}(${quote.code}), 价格: ${quote.price}, 涨跌幅: ${quote.changePercent?.toFixed(2)}%`);
+      
       // 获取股票完整数据（包含技术指标等）
       const stockDataSource = getStockDataSource();
       
@@ -4391,37 +4393,37 @@ class MarketMonitorManager {
       logger.info(`[${timestamp}] [卖出信号保护] 发现持仓: 买入价=${entryPrice}, 时间=${new Date(entryTime).toLocaleString('zh-CN')}`);
     }
     
-    // 4. 时间窗口保护：买入后3天内不生成卖出信号（除非极端情况）        
+    // 4. 时间窗口保护：买入后1天内不生成卖出信号（除非极端情况）        
       // now 变量已在上方定义
-    const threeDaysInMs = 3 * 24 * 60 * 60 * 1000; // 3天保护期
-    const isWithinProtectionPeriod = hasValidPosition && (now - entryTime) < threeDaysInMs;
+    const oneDayInMs = 1 * 24 * 60 * 60 * 1000; // 1天保护期
+    const isWithinProtectionPeriod = hasValidPosition && (now - entryTime) < oneDayInMs;
     
-    // 5. 目标价格保护：未达到买入价格不生成卖出信号（除非极端情况）
+    // 5. 目标价格保护：低于买入价3%以上才考虑保护
     const currentPrice = data.currentPrice;
-    const isBelowBuyPrice = hasValidPosition && entryPrice > 0 && currentPrice < entryPrice;
+    const isBelowBuyPrice = hasValidPosition && entryPrice > 0 && currentPrice < entryPrice * 0.97; // 低于买入价3%以上才保护
     
     // 6. 从智能优化器获取动态跌幅阈值（可自动学习优化）
     const optimizer = getIntelligentOptimizer();
     const optimizerParams = optimizer.getParams();
-    // 默认跌幅阈值为-7%，可以通过优化器自动调整
-    const extremeDropThreshold = optimizerParams.extremeDropThreshold || -7;
+    // 默认跌幅阈值为-5%，可以通过优化器自动调整
+    const extremeDropThreshold = optimizerParams.extremeDropThreshold || -5;
     
     // 检查是否为极端情况：单日跌幅超过阈值，允许在保护期内生成卖出信号
     const isExtremeDrop = data.changePercent !== undefined && data.changePercent < extremeDropThreshold;
     
-    logger.info(`[${timestamp}] [卖出信号保护] 保护期内=${isWithinProtectionPeriod}, 低于买入价=${isBelowBuyPrice}, 极端下跌=${isExtremeDrop}, 跌幅阈值=${extremeDropThreshold}%`);
+    logger.info(`[${timestamp}] [卖出信号保护] 保护期内=${isWithinProtectionPeriod}, 低于买入价3%=${isBelowBuyPrice}, 极端下跌=${isExtremeDrop}, 跌幅阈值=${extremeDropThreshold}%`);
     
-    // 7. 如果在保护期内，直接跳过（无论是否极端下跌，都给予3天保护期）
-    if (isWithinProtectionPeriod) {
+    // 7. 如果在保护期内，且不是极端下跌，才跳过
+    if (isWithinProtectionPeriod && !isExtremeDrop) {
       const timeDiff = Math.floor((now - entryTime) / (24 * 60 * 60 * 1000));
-      logger.info(`[${timestamp}] [卖出信号保护] ${data.stockName}(${data.stockCode}) - 买入后仅${timeDiff}天，处于3天保护期内，跳过卖出信号`);
+      logger.info(`[${timestamp}] [卖出信号保护] ${data.stockName}(${data.stockCode}) - 买入后仅${timeDiff}天，处于1天保护期内，跳过卖出信号`);
       return null;
     }
     
-    // 8. 如果低于买入价格，直接跳过（防止亏损卖出，无论是否极端下跌）
-    if (isBelowBuyPrice) {
+    // 8. 如果低于买入价3%以上，且不是极端下跌，才跳过
+    if (isBelowBuyPrice && !isExtremeDrop) {
       const lossPercent = ((currentPrice - entryPrice) / entryPrice * 100).toFixed(2);
-      logger.info(`[${timestamp}] [卖出信号保护] ${data.stockName}(${data.stockCode}) - 当前价(${currentPrice})低于买入价(${entryPrice})，亏损${lossPercent}%，跳过卖出信号`);
+      logger.info(`[${timestamp}] [卖出信号保护] ${data.stockName}(${data.stockCode}) - 当前价(${currentPrice})低于买入价(${entryPrice})3%以上，亏损${lossPercent}%，跳过卖出信号`);
       return null;
     }
     // === 新增关键保护机制结束 ===
@@ -4823,15 +4825,15 @@ class MarketMonitorManager {
     // === 卖出信号平衡逻辑：既防乱提示，又确保真风险时能及时发出 ===
     let minSellConditions: number;
 
-    // 平衡的卖出门槛：
+    // 大幅降低卖出门槛，确保能及时发现风险！
     if (isHighRiskStock) {
-      minSellConditions = 8; // 高风险股票需要满足8个条件（大涨后主力逃跑）
+      minSellConditions = 4; // 高风险股票需要满足4个条件（大涨后主力逃跑）
     } else if (isContinuousDownStock || isHoldingDownStock || isDownBreakout) {
-      minSellConditions = 6; // 下跌/破位需要满足6个条件
+      minSellConditions = 3; // 下跌/破位需要满足3个条件
     } else if (isLeaderStockSell) {
-      minSellConditions = 7; // 龙头股票需要满足7个条件
+      minSellConditions = 4; // 龙头股票需要满足4个条件
     } else {
-      minSellConditions = 10; // 普通情况需要满足10个条件
+      minSellConditions = 5; // 普通情况需要满足5个条件
     }
     
     // === 核心条件检查：识别真正的风险 ===
