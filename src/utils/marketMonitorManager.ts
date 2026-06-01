@@ -4517,17 +4517,19 @@ class MarketMonitorManager {
     // ====== 【新增】连续多日下跌检测 ======
     let consecutiveDownDays = 0;
     let recentDownTrendStrength = 0;
+    let maxConsecutiveDownDaysInPeriod = 0; // 最近一段时间内最大连续下跌天数
+    let maxDownTrendStrengthInPeriod = 0; // 最大连续下跌期间的累计跌幅
     
     try {
-      // 获取最近5天的历史数据来检测连续下跌
+      // 获取最近10天的历史数据来检测连续下跌
       const recentHistory = await this.historicalDataManager.getHistoricalData(normalizedStockCode);
-      if (recentHistory && recentHistory.length >= 5) {
-        // 取最近5天的数据（倒序，最新的在前）
-        const last5Days = recentHistory.slice(0, 5);
+      if (recentHistory && recentHistory.length >= 3) {
+        // 取最近10天的数据（倒序，最新的在前）
+        const last10Days = recentHistory.slice(0, 10);
         
-        // 计算连续下跌天数
-        for (let i = 0; i < last5Days.length; i++) {
-          const day = last5Days[i];
+        // 计算从今天开始的连续下跌天数
+        for (let i = 0; i < last10Days.length; i++) {
+          const day = last10Days[i];
           if (day.close < day.open || (day.change !== undefined && day.change < 0)) {
             consecutiveDownDays++;
             // 计算下跌强度（跌幅越大权重越高）
@@ -4539,7 +4541,33 @@ class MarketMonitorManager {
           }
         }
         
-        logger.info(`[${timestamp}] [连续下跌检测] ${data.stockName}(${data.stockCode}) - 连续下跌天数: ${consecutiveDownDays}天, 累计跌幅: ${recentDownTrendStrength.toFixed(1)}%`);
+        // 【新增】检测最近10天内是否有过连续下跌（即使今天上涨）
+        let tempConsecutiveDays = 0;
+        let tempDownStrength = 0;
+        for (let i = 0; i < last10Days.length; i++) {
+          const day = last10Days[i];
+          if (day.close < day.open || (day.change !== undefined && day.change < 0)) {
+            tempConsecutiveDays++;
+            if (day.changePercent) {
+              tempDownStrength += Math.abs(day.changePercent);
+            }
+          } else {
+            // 遇到上涨，检查并更新最大值
+            if (tempConsecutiveDays > maxConsecutiveDownDaysInPeriod) {
+              maxConsecutiveDownDaysInPeriod = tempConsecutiveDays;
+              maxDownTrendStrengthInPeriod = tempDownStrength;
+            }
+            tempConsecutiveDays = 0;
+            tempDownStrength = 0;
+          }
+        }
+        // 检查最后一段连续下跌
+        if (tempConsecutiveDays > maxConsecutiveDownDaysInPeriod) {
+          maxConsecutiveDownDaysInPeriod = tempConsecutiveDays;
+          maxDownTrendStrengthInPeriod = tempDownStrength;
+        }
+        
+        logger.info(`[${timestamp}] [连续下跌检测] ${data.stockName}(${data.stockCode}) - 连续下跌天数: ${consecutiveDownDays}天, 累计跌幅: ${recentDownTrendStrength.toFixed(1)}%, 近期最大连续下跌: ${maxConsecutiveDownDaysInPeriod}天(${maxDownTrendStrengthInPeriod.toFixed(1)}%)`);
       }
     } catch (error) {
       logger.warn(`[${timestamp}] [连续下跌检测] 获取历史数据失败:`, error);
@@ -4562,7 +4590,12 @@ class MarketMonitorManager {
       // 连续2天下跌且累计跌幅超过5%
       (consecutiveDownDays >= 2 && recentDownTrendStrength >= 5) ||
       // 连续3天及以上下跌（无论跌幅大小都触发）
-      (consecutiveDownDays >= 3)
+      (consecutiveDownDays >= 3) ||
+      // ====== 【新增】近期历史连续下跌检测（即使今天上涨）======
+      // 最近10天内有过连续2天下跌且累计跌幅超过6%
+      (maxConsecutiveDownDaysInPeriod >= 2 && maxDownTrendStrengthInPeriod >= 6) ||
+      // 最近10天内有过连续3天及以上下跌
+      (maxConsecutiveDownDaysInPeriod >= 3)
     );
     
     // 判断是否为持仓股连续下跌（新增）- 必须结合多个条件，单一条件不触发，根据行情智能调整
@@ -4581,7 +4614,12 @@ class MarketMonitorManager {
       // 持仓股连续2天下跌且累计跌幅超过4%
       (consecutiveDownDays >= 2 && recentDownTrendStrength >= 4) ||
       // 持仓股连续3天及以上下跌
-      (consecutiveDownDays >= 3)
+      (consecutiveDownDays >= 3) ||
+      // ====== 【新增】持仓股近期历史连续下跌检测（即使今天上涨）======
+      // 最近10天内有过连续2天下跌且累计跌幅超过5%
+      (maxConsecutiveDownDaysInPeriod >= 2 && maxDownTrendStrengthInPeriod >= 5) ||
+      // 最近10天内有过连续3天及以上下跌
+      (maxConsecutiveDownDaysInPeriod >= 3)
     );
     
     // 判断是否为下跌破位（新增）
