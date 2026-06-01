@@ -469,8 +469,12 @@ class MarketMonitorManager {
       // 获取股票完整数据（包含技术指标等）
       const stockDataSource = getStockDataSource();
       
-      // 获取主力资金数据（需要传入代码数组）
-      const mainForceDataArray = await stockDataSource.getMainForceData([quote.code]);
+      // 标准化股票代码（移除 sh/sz 前缀，确保数据源能正确识别）
+      const normalizedCode = quote.code.replace(/^sh|^sz/, '');
+      logger.info(`[${timestamp}] [持仓扫描] 标准化代码: ${quote.code} -> ${normalizedCode}`);
+      
+      // 获取主力资金数据
+      const mainForceDataArray = await stockDataSource.getMainForceData([normalizedCode]);
       const mainForceData = mainForceDataArray[0] || {
         mainForceNetFlow: 0,
         totalNetFlow: 0,
@@ -492,7 +496,7 @@ class MarketMonitorManager {
       };
       
       // 获取技术指标数据
-      const technicalData = await stockDataSource.getTechnicalIndicators(quote.code) || {
+      const technicalData = await stockDataSource.getTechnicalIndicators(normalizedCode) || {
         rsi: 50,
         macd: { diff: 0, dea: 0, macd: 0 },
         kdj: { k: 50, d: 50, j: 50 },
@@ -507,7 +511,7 @@ class MarketMonitorManager {
       };
       
       // 获取融资融券数据
-      const marginTradingData = await stockDataSource.getMarginTradingData(quote.code) || {
+      const marginTradingData = await stockDataSource.getMarginTradingData(normalizedCode) || {
         marginBuy: 0,
         marginRepay: 0,
         marginBalance: 0,
@@ -527,7 +531,7 @@ class MarketMonitorManager {
       
       // 构建完整数据
       const comprehensiveData = {
-        stockCode: quote.code,
+        stockCode: quote.code, // 保留原始代码用于显示
         stockName: quote.name,
         mainForceData,
         technicalData,
@@ -541,11 +545,15 @@ class MarketMonitorManager {
         return;
       }
       
+      logger.info(`[${timestamp}] [持仓扫描] 数据获取完成，开始调用 generateSellSignal`);
+      
       // 生成卖出信号（generateSellSignal内部已自动添加到signalManager）
       const sellSignal = this.generateSellSignal(comprehensiveData);
       
       if (sellSignal) {
         logger.info(`[持仓卖出信号] ${quote.name}(${quote.code}) 生成卖出信号: ${sellSignal.reason}`);
+      } else {
+        logger.info(`[${timestamp}] [持仓扫描] ${quote.name}(${quote.code}) 未生成卖出信号`);
       }
     } catch (error) {
       logger.error(`[持仓卖出信号] 处理失败 ${quote.code}:`, error);
