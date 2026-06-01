@@ -1,4 +1,4 @@
-import { Logger, getStockList } from './stockData';
+import { Logger, getStockList, getStockDataSource } from './stockData';
 import { HistoricalData, HistoricalDataManager, getHistoricalDataManager } from './historicalData';
 import { IndexedDBManager } from './indexedDBManager';
 import { chipPeakAnalyzer } from './chipPeakAnalyzer';
@@ -620,6 +620,17 @@ export class IntelligentOptimizer {
       // 趋势判断（更严格的条件）
       const isUpwardTrend = ma5 > ma20 && ma20 > ma60 && currentPrice > ma5 && (currentPrice - ma20) / ma20 > 0.02;
       const isSidewaysTrend = Math.abs(ma5 - ma20) / ma20 < 0.03 && Math.abs(ma20 - ma60) / ma60 < 0.05;
+      
+      // 获取主力资金数据
+      let mainForceNetFlow = 0;
+      try {
+        const stockDataSource = getStockDataSource();
+        const mainForceData = await stockDataSource.getMainForceData([stockCode]);
+        mainForceNetFlow = mainForceData[0]?.mainForceNetFlow || 0;
+      } catch (error) {
+        logger.warn('获取主力资金数据失败:', error);
+        mainForceNetFlow = 0;
+      }
 
       // 获取筹码峰分析
       let chipPeakAdjustment = 1.0;

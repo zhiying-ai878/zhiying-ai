@@ -420,16 +420,22 @@ class MarketMonitorManager {
 
   // ====== 【新增】扫描持仓股票的卖出信号 ======
   private async scanPositionStocks() {
-    if (this.positionWatchList.size === 0) {
-      return; // 没有持仓，跳过扫描
-    }
+    const timestamp = new Date().toLocaleString('zh-CN');
     
     // ========== 【修复】重置本轮持仓扫描的卖出信号计数 ==========
     this.currentScanSellSignalCount = 0;
     // ===============================================================
     
-    const timestamp = new Date().toLocaleString('zh-CN');
+    if (this.positionWatchList.size === 0) {
+      logger.info(`[${timestamp}] [持仓扫描] 无持仓股票，跳过`);
+      return; // 没有持仓，跳过扫描
+    }
+    
     const stockCodes = [...this.positionWatchList];
+    
+    logger.info(`[${timestamp}] [持仓扫描] ====== 开始持仓股票扫描 ======`);
+    logger.info(`[${timestamp}] [持仓扫描] 监控列表股票数量: ${this.positionWatchList.size}`);
+    logger.info(`[${timestamp}] [持仓扫描] 股票代码列表: ${stockCodes.join(', ')}`);
     
     try {
       // 添加 sh/sz 前缀
@@ -437,25 +443,32 @@ class MarketMonitorManager {
         return code.startsWith('6') ? `sh${code}` : `sz${code}`;
       });
       
+      logger.info(`[${timestamp}] [持仓扫描] 添加前缀后的代码: ${prefixedCodes.join(', ')}`);
+      
       // 获取持仓股票实时数据
       const stockDataSource = getStockDataSource();
       const quotes = await stockDataSource.getRealtimeQuote(prefixedCodes);
       
       if (!quotes || quotes.length === 0) {
-        logger.warn(`[持仓卖出扫描] 未获取到持仓股票数据`);
+        logger.warn(`[${timestamp}] [持仓扫描] 未获取到持仓股票数据`);
         return;
       }
+      
+      logger.info(`[${timestamp}] [持仓扫描] 获取到 ${quotes.length} 只股票的实时数据`);
       
       // 处理每个持仓股票的卖出信号
       for (const quote of quotes) {
         try {
+          logger.info(`[${timestamp}] [持仓扫描] 开始处理: ${quote.name}(${quote.code})`);
           await this.processPositionSellSignal(quote);
         } catch (error) {
-          logger.error(`[持仓卖出扫描] 处理 ${quote.name}(${quote.code}) 失败:`, error);
+          logger.error(`[${timestamp}] [持仓扫描] 处理 ${quote.name}(${quote.code}) 失败:`, error);
         }
       }
+      
+      logger.info(`[${timestamp}] [持仓扫描] ====== 持仓股票扫描结束 ======`);
     } catch (error) {
-      logger.error(`[持仓卖出扫描] 扫描失败:`, error);
+      logger.error(`[${timestamp}] [持仓扫描] 扫描失败:`, error);
     }
   }
 
