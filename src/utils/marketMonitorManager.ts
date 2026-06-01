@@ -561,7 +561,7 @@ class MarketMonitorManager {
       logger.info(`[${timestamp}] [持仓扫描] 数据获取完成，开始调用 generateSellSignal`);
       
       // 生成卖出信号（generateSellSignal内部已自动添加到signalManager）
-      const sellSignal = this.generateSellSignal(comprehensiveData);
+      const sellSignal = await this.generateSellSignal(comprehensiveData);
       
       if (sellSignal) {
         logger.info(`[持仓卖出信号] ${quote.name}(${quote.code}) 生成卖出信号: ${sellSignal.reason}`);
@@ -3683,7 +3683,7 @@ class MarketMonitorManager {
           // 生成买入和卖出信号
           // 使用简化的条件确保测试数据能生成信号
           const buySignal = await this.generateBuySignal(comprehensiveData, limitUpScore, expectedReturn);
-          const sellSignal = this.generateSellSignal(comprehensiveData);
+          const sellSignal = await this.generateSellSignal(comprehensiveData);
           
           const signals: any[] = [];
           
@@ -4321,7 +4321,7 @@ class MarketMonitorManager {
     return null;
   }
 
-  private generateSellSignal(data: any): any | null {
+  private async generateSellSignal(data: any): Promise<any | null> {
     const timestamp = new Date().toLocaleString('zh-CN');
     const normalizedStockCode = data.stockCode.replace(/^sh|^sz/, '');
     const now = Date.now();
@@ -4514,7 +4514,39 @@ class MarketMonitorManager {
       crazyRiseTolerance = 1;
     }
     
-    logger.info(`${data.stockName}(${data.stockCode}) 20日涨幅: ${recentRiseRange.toFixed(1)}%, 动态下跌阈值: ${dynamicDownThreshold.toFixed(1)}%`);
+    // ====== 【新增】连续多日下跌检测 ======
+    let consecutiveDownDays = 0;
+    let recentDownTrendStrength = 0;
+    
+    try {
+      // 获取最近5天的历史数据来检测连续下跌
+      const recentHistory = await this.historicalDataManager.getHistoricalData(normalizedStockCode);
+      if (recentHistory && recentHistory.length >= 5) {
+        // 取最近5天的数据（倒序，最新的在前）
+        const last5Days = recentHistory.slice(0, 5);
+        
+        // 计算连续下跌天数
+        for (let i = 0; i < last5Days.length; i++) {
+          const day = last5Days[i];
+          if (day.close < day.open || (day.change !== undefined && day.change < 0)) {
+            consecutiveDownDays++;
+            // 计算下跌强度（跌幅越大权重越高）
+            if (day.changePercent) {
+              recentDownTrendStrength += Math.abs(day.changePercent);
+            }
+          } else {
+            break; // 遇到上涨或平盘，停止计数
+          }
+        }
+        
+        logger.info(`[${timestamp}] [连续下跌检测] ${data.stockName}(${data.stockCode}) - 连续下跌天数: ${consecutiveDownDays}天, 累计跌幅: ${recentDownTrendStrength.toFixed(1)}%`);
+      }
+    } catch (error) {
+      logger.warn(`[${timestamp}] [连续下跌检测] 获取历史数据失败:`, error);
+    }
+    // ====== 连续多日下跌检测结束 ======
+    
+    logger.info(`${data.stockName}(${data.stockCode}) 20日涨幅: ${recentRiseRange.toFixed(1)}%, 动态下跌阈值: ${dynamicDownThreshold.toFixed(1)}%, 连续下跌天数: ${consecutiveDownDays}天`);
     
     // 判断是否为连续下跌股票（新增）- 必须结合多个条件，根据行情智能调整
     const isContinuousDownStock = data.changePercent !== undefined && (
@@ -4525,21 +4557,31 @@ class MarketMonitorManager {
       // 跌幅超过(动态阈值+2%)且主力资金流出
       (data.changePercent < (dynamicDownThreshold + 2) && mainForceNetFlow < -50000) ||
       // 跌幅超过(动态阈值+1%)且RSI走低
-      (data.changePercent < (dynamicDownThreshold + 1) && rsi < 40)
+      (data.changePercent < (dynamicDownThreshold + 1) && rsi < 40) ||
+      // ====== 【新增】连续多日下跌检测 ======
+      // 连续2天下跌且累计跌幅超过5%
+      (consecutiveDownDays >= 2 && recentDownTrendStrength >= 5) ||
+      // 连续3天及以上下跌（无论跌幅大小都触发）
+      (consecutiveDownDays >= 3)
     );
     
     // 判断是否为持仓股连续下跌（新增）- 必须结合多个条件，单一条件不触发，根据行情智能调整
-    const isHoldingDownStock = isHoldingStock && data.changePercent !== undefined && (
+    const isHoldingDownStock = isHoldingStock && (
       // 持仓股跌幅超过动态阈值 + 跌破均线
-      (data.changePercent < dynamicDownThreshold && currentPrice < ma.ma5) ||
+      (data.changePercent !== undefined && data.changePercent < dynamicDownThreshold && currentPrice < ma.ma5) ||
       // 持仓股跌幅超过动态阈值 + 主力资金流出
-      (data.changePercent < dynamicDownThreshold && mainForceNetFlow < -50000) ||
+      (data.changePercent !== undefined && data.changePercent < dynamicDownThreshold && mainForceNetFlow < -50000) ||
       // 持仓股跌幅超过(动态阈值-2%)
-      (data.changePercent < (dynamicDownThreshold - 2)) ||
+      (data.changePercent !== undefined && data.changePercent < (dynamicDownThreshold - 2)) ||
       // 持仓股跌幅超过(动态阈值-1%) + MACD死叉
-      (data.changePercent < (dynamicDownThreshold - 1) && macdCrossSignal === 1) ||
+      (data.changePercent !== undefined && data.changePercent < (dynamicDownThreshold - 1) && macdCrossSignal === 1) ||
       // 持仓股跌幅超过(动态阈值-1%) + KDJ死叉
-      (data.changePercent < (dynamicDownThreshold - 1) && kdjCrossSignal === 1)
+      (data.changePercent !== undefined && data.changePercent < (dynamicDownThreshold - 1) && kdjCrossSignal === 1) ||
+      // ====== 【新增】持仓股连续多日下跌检测 ======
+      // 持仓股连续2天下跌且累计跌幅超过4%
+      (consecutiveDownDays >= 2 && recentDownTrendStrength >= 4) ||
+      // 持仓股连续3天及以上下跌
+      (consecutiveDownDays >= 3)
     );
     
     // 判断是否为下跌破位（新增）
