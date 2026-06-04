@@ -433,18 +433,9 @@ class MarketMonitorManager {
     
     const stockCodes = [...this.positionWatchList];
     
-    // ====== 【调试】打印详细信息 ======
     logger.info(`[${timestamp}] [持仓扫描] ====== 开始持仓股票扫描 ======`);
     logger.info(`[${timestamp}] [持仓扫描] 监控列表股票数量: ${this.positionWatchList.size}`);
     logger.info(`[${timestamp}] [持仓扫描] 股票代码列表: ${stockCodes.join(', ')}`);
-    
-    // 检查信号管理器中的持仓
-    const positions = this.signalManager.getPositions();
-    logger.info(`[${timestamp}] [持仓扫描] 信号管理器中的持仓数量: ${positions.length}`);
-    positions.forEach((p: any) => {
-      logger.info(`[${timestamp}] [持仓扫描] 持仓: ${p.stockName}(${p.stockCode}) - 买入价: ${p.entryPrice}, 当前价: ${p.currentPrice || '未知'}`);
-    });
-    // ====================================
     
     try {
       // 添加 sh/sz 前缀
@@ -568,6 +559,64 @@ class MarketMonitorManager {
       }
       
       logger.info(`[${timestamp}] [持仓扫描] 数据获取完成，开始调用 generateSellSignal`);
+      
+      // 【新增】先检查持仓亏损情况，如果持仓亏损超过5%，直接强制生成卖出信号
+      const positions = this.signalManager.getPositions();
+      const positionForStock = positions.find((p: any) => {
+        const positionCode = String(p.stockCode).replace(/^sh|^sz/, '');
+        return positionCode === normalizedCode;
+      });
+      
+      if (positionForStock && positionForStock.entryPrice > 0 && quote.price > 0) {
+        const positionLossPercent = ((quote.price - positionForStock.entryPrice) / positionForStock.entryPrice) * 100;
+        logger.info(`[${timestamp}] [持仓亏损检查] ${quote.name}(${normalizedCode}) - 持仓亏损: ${positionLossPercent.toFixed(2)}%`);
+        
+        // 如果持仓亏损超过5%，直接强制生成卖出信号，不经过复杂逻辑
+        if (positionLossPercent < -5) {
+          logger.info(`[${timestamp}] [强制生成卖出信号] ${quote.name}(${normalizedCode}) - 持仓亏损${positionLossPercent.toFixed(2)}%超过5%，直接强制生成卖出信号`);
+          
+          // 直接创建并添加卖出信号
+          const forcedSellSignal = {
+            id: Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 8) + '-' + normalizedCode,
+            stockCode: normalizedCode,
+            stockName: quote.name,
+            type: 'sell' as const,
+            score: 80,
+            price: quote.price,
+            change: quote.change || 0,
+            changePercent: quote.changePercent || 0,
+            confidence: 85,
+            reason: `【持仓止损】持仓亏损${positionLossPercent.toFixed(2)}%，建议及时止损`,
+            mainForceFlow: 0,
+            mainForceRatio: 0,
+            technicalData: {
+              rsi: 40,
+              macd: { diff: -0.1, dea: 0 },
+              kdj: { k: 30, d: 35 }
+            },
+            targetPrice: quote.price * 0.95,
+            expectedProfitPercent: -5,
+            timestamp: Date.now(),
+            isRead: false,
+            isLimitUpPotential: false,
+            isLeadingStock: false,
+            isPotentialDouble: false,
+            isPotentialMultiBagger: false,
+            satisfiedConditions: 3,
+            totalConditions: 5
+          };
+          
+          // 直接添加到信号管理器
+          this.signalManager.addSignal(forcedSellSignal);
+          this.currentScanSellSignalCount++;
+          
+          // 记录去重时间戳
+          this.sellSignalTimestamps.set(normalizedCode, Date.now());
+          
+          logger.info(`[${timestamp}] [强制生成成功] ${quote.name}(${normalizedCode}) 已成功强制生成卖出信号`);
+          return; // 直接返回，不再执行复杂逻辑
+        }
+      }
       
       // 生成卖出信号（generateSellSignal内部已自动添加到signalManager）
       const sellSignal = await this.generateSellSignal(comprehensiveData);
