@@ -4450,10 +4450,14 @@ class MarketMonitorManager {
     logger.info(`[${timestamp}] [卖出信号保护] 保护期内=${isWithinProtectionPeriod}, 低于买入价3%=${isBelowBuyPrice}, 极端下跌=${isExtremeDrop}, 跌幅阈值=${extremeDropThreshold}%`);
     
     // 7. 如果在保护期内，且不是极端下跌，才跳过
-    if (isWithinProtectionPeriod && !isExtremeDrop) {
+    // 【修改】持仓亏损超过5%时，即使在保护期内也生成卖出信号
+    if (isWithinProtectionPeriod && !isExtremeDrop && positionLossPercent >= -5) {
       const timeDiff = Math.floor((now - entryTime) / (24 * 60 * 60 * 1000));
       logger.info(`[${timestamp}] [卖出信号保护] ${data.stockName}(${data.stockCode}) - 买入后仅${timeDiff}天，处于1天保护期内，跳过卖出信号`);
       return null;
+    } else if (isWithinProtectionPeriod && positionLossPercent < -5) {
+      const timeDiff = Math.floor((now - entryTime) / (24 * 60 * 60 * 1000));
+      logger.info(`[${timestamp}] [卖出信号保护] ${data.stockName}(${data.stockCode}) - 买入后仅${timeDiff}天，虽然在保护期内，但持仓亏损${positionLossPercent.toFixed(2)}%超过5%，允许生成卖出信号`);
     }
     
     // 8. 【修复】取消"低于买入价3%跳过"的限制，改为记录日志
