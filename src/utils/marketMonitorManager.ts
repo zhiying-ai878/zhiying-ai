@@ -433,9 +433,18 @@ class MarketMonitorManager {
     
     const stockCodes = [...this.positionWatchList];
     
+    // ====== 【调试】打印详细信息 ======
     logger.info(`[${timestamp}] [持仓扫描] ====== 开始持仓股票扫描 ======`);
     logger.info(`[${timestamp}] [持仓扫描] 监控列表股票数量: ${this.positionWatchList.size}`);
     logger.info(`[${timestamp}] [持仓扫描] 股票代码列表: ${stockCodes.join(', ')}`);
+    
+    // 检查信号管理器中的持仓
+    const positions = this.signalManager.getPositions();
+    logger.info(`[${timestamp}] [持仓扫描] 信号管理器中的持仓数量: ${positions.length}`);
+    positions.forEach((p: any) => {
+      logger.info(`[${timestamp}] [持仓扫描] 持仓: ${p.stockName}(${p.stockCode}) - 买入价: ${p.entryPrice}, 当前价: ${p.currentPrice || '未知'}`);
+    });
+    // ====================================
     
     try {
       // 添加 sh/sz 前缀
