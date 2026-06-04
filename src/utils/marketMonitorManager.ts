@@ -4364,19 +4364,6 @@ class MarketMonitorManager {
     }
     // ==========================================================================
 
-    // ========== 【关键修复2】信号冲突检测：同一只股票不能同时有买入和卖出信号 ==========
-    const allSignalsForConflict = this.signalManager.getSignalHistory();
-    const hasExistingBuySignal = allSignalsForConflict.some(signal => {
-      const signalCode = String(signal.stockCode).replace(/^sh|^sz/, '');
-      return signalCode === normalizedStockCode && signal.type === 'buy' && !signal.isRead;
-    });
-    
-    if (hasExistingBuySignal) {
-      logger.info(`[${timestamp}] [信号冲突] ${data.stockName}(${data.stockCode}) 已有未读买入信号，跳过卖出信号生成`);
-      return null;
-    }
-    // ==========================================================================
-
     // 卖出信号只针对持仓股票生成（用户要求）
     const isHoldingStock = this.signalManager.getPosition(data.stockCode) !== undefined;
 
@@ -4430,6 +4417,26 @@ class MarketMonitorManager {
       positionLossPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
       logger.info(`[${timestamp}] [持仓亏损检测] ${data.stockName}(${data.stockCode}) - 持仓亏损: ${positionLossPercent.toFixed(2)}%`);
     }
+    
+    // ========== 【关键修复2】信号冲突检测：同一只股票不能同时有买入和卖出信号 ==========
+    // 【修改】移到此处以便使用 positionLossPercent
+    const allSignalsForConflict = this.signalManager.getSignalHistory();
+    const hasExistingBuySignal = allSignalsForConflict.some(signal => {
+      const signalCode = String(signal.stockCode).replace(/^sh|^sz/, '');
+      return signalCode === normalizedStockCode && signal.type === 'buy' && !signal.isRead;
+    });
+    
+    // 【修改】允许持仓亏损严重时覆盖买入信号
+    // 如果持仓亏损超过5%，即使有未读买入信号也允许生成卖出信号
+    const isSevereLoss = positionLossPercent < -5;
+    
+    if (hasExistingBuySignal && !isSevereLoss) {
+      logger.info(`[${timestamp}] [信号冲突] ${data.stockName}(${data.stockCode}) 已有未读买入信号，跳过卖出信号生成`);
+      return null;
+    } else if (hasExistingBuySignal && isSevereLoss) {
+      logger.info(`[${timestamp}] [信号覆盖] ${data.stockName}(${data.stockCode}) 有未读买入信号，但持仓亏损${positionLossPercent.toFixed(2)}%超过5%，允许生成卖出信号`);
+    }
+    // ==========================================================================
     
     // 6. 从智能优化器获取动态跌幅阈值（可自动学习优化）
     const optimizer = getIntelligentOptimizer();
