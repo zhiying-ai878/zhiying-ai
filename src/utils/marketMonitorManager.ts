@@ -2960,6 +2960,8 @@ class MarketMonitorManager {
 
   async performScan() {
     await this.scanMarket();
+    // 同时触发一次持仓扫描，确保持仓股票的卖出信号能及时生成
+    await this.scanPositionStocks();
   }
 
   async scanMarket() {
