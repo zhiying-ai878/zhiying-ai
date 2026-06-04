@@ -4963,7 +4963,13 @@ class MarketMonitorManager {
     let minSellConditions: number;
 
     // 大幅降低卖出门槛，确保能及时发现风险！
-    if (isHighRiskStock) {
+    if (positionLossPercent < -5) {
+      minSellConditions = 1; // 持仓亏损超过5%，只需1个条件！
+      logger.info(`[${timestamp}] [持仓亏损触发] ${data.stockName}(${data.stockCode}) - 持仓亏损${positionLossPercent.toFixed(2)}%超过5%，最低只需1个条件就生成卖出信号`);
+    } else if (positionLossPercent < -3) {
+      minSellConditions = 2; // 持仓亏损超过3%，只需2个条件
+      logger.info(`[${timestamp}] [持仓亏损触发] ${data.stockName}(${data.stockCode}) - 持仓亏损${positionLossPercent.toFixed(2)}%超过3%，只需2个条件就生成卖出信号`);
+    } else if (isHighRiskStock) {
       minSellConditions = 4; // 高风险股票需要满足4个条件（大涨后主力逃跑）
     } else if (isContinuousDownStock || isHoldingDownStock || isDownBreakout) {
       minSellConditions = 3; // 下跌/破位需要满足3个条件
@@ -4988,6 +4994,10 @@ class MarketMonitorManager {
     const hasOverbought = (rsi && rsi > 75) || (kdjK > 80);
     // 核心条件6：单日下跌（超过3%）
     const hasDrop = data.changePercent !== undefined && data.changePercent < -3;
+    // 核心条件7：持仓亏损（超过5%）
+    const hasPositionLoss = positionLossPercent < -5;
+    // 核心条件8：持仓亏损较大（超过3%）
+    const hasPositionLossLarge = positionLossPercent < -3;
     
     // 检查是否满足至少1个核心条件（比之前更宽松，确保风险能及时发出）
     let coreConditionsMet = 0;
@@ -4997,10 +5007,12 @@ class MarketMonitorManager {
     if (hasMacdOrKdjSell) coreConditionsMet++;
     if (hasOverbought) coreConditionsMet++;
     if (hasDrop) coreConditionsMet++;
+    if (hasPositionLoss) coreConditionsMet++;
+    if (hasPositionLossLarge) coreConditionsMet++;
     
-    logger.info(`[${timestamp}] [卖出信号核心检查] 核心条件满足: ${coreConditionsMet}/6, 主力流出: ${hasMainForceOutflow}, 技术破位: ${hasTechnicalBreakdown}, 放量下跌: ${hasVolumeDrop}, MACD/KDJ死叉: ${hasMacdOrKdjSell}, 超买: ${hasOverbought}, 下跌: ${hasDrop}`);
+    logger.info(`[${timestamp}] [卖出信号核心检查] 核心条件满足: ${coreConditionsMet}/8, 主力流出: ${hasMainForceOutflow}, 技术破位: ${hasTechnicalBreakdown}, 放量下跌: ${hasVolumeDrop}, MACD/KDJ死叉: ${hasMacdOrKdjSell}, 超买: ${hasOverbought}, 下跌: ${hasDrop}, 持仓亏损>5%: ${hasPositionLoss}, 持仓亏损>3%: ${hasPositionLossLarge}`);
     
-    // 只要满足至少1个核心条件，或者是极端下跌，就考虑卖出
+    // 只要满足至少1个核心条件，或者是极端下跌，或者是持仓亏损，就考虑卖出
     // 但仍然要通过时间窗口和目标价格保护
     if (coreConditionsMet < 1 && !isExtremeDrop) {
       logger.info(`[${timestamp}] [卖出信号跳过] 没有核心风险条件，不生成卖出信号`);
