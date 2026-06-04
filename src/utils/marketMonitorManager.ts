@@ -5013,11 +5013,17 @@ class MarketMonitorManager {
     
     logger.info(`[${timestamp}] [卖出信号核心检查] 核心条件满足: ${coreConditionsMet}/8, 主力流出: ${hasMainForceOutflow}, 技术破位: ${hasTechnicalBreakdown}, 放量下跌: ${hasVolumeDrop}, MACD/KDJ死叉: ${hasMacdOrKdjSell}, 超买: ${hasOverbought}, 下跌: ${hasDrop}, 持仓亏损>5%: ${hasPositionLoss}, 持仓亏损>3%: ${hasPositionLossLarge}`);
     
-    // 只要满足至少1个核心条件，或者是极端下跌，或者是持仓亏损，就考虑卖出
-    // 但仍然要通过时间窗口和目标价格保护
+    // 只要满足至少1个核心条件，或者是极端下跌，就考虑卖出
+    // 【修复】持仓亏损超过5%的股票，即使没有其他核心条件，也强制生成卖出信号
     if (coreConditionsMet < 1 && !isExtremeDrop) {
-      logger.info(`[${timestamp}] [卖出信号跳过] 没有核心风险条件，不生成卖出信号`);
-      return null;
+      // 持仓亏损超过5%，强制生成卖出信号
+      if (isHoldingStock && positionLossPercent < -5) {
+        logger.info(`[${timestamp}] [持仓亏损强制生成] ${data.stockName}(${data.stockCode}) - 持仓亏损${positionLossPercent.toFixed(2)}%超过5%，强制生成卖出信号`);
+        // 直接继续生成信号
+      } else {
+        logger.info(`[${timestamp}] [卖出信号跳过] 没有核心风险条件，不生成卖出信号`);
+        return null;
+      }
     }
     
     // === 新增止盈逻辑：接近或达到目标价格时，降低卖出门槛 ===
