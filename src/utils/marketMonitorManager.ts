@@ -426,6 +426,11 @@ class MarketMonitorManager {
     this.currentScanSellSignalCount = 0;
     // ===============================================================
     
+    // ========== 【新增】每次扫描前强制更新持仓监控列表 ==========
+    this.updatePositionWatchList();
+    logger.info(`[${timestamp}] [持仓扫描] 更新后持仓监控列表: ${[...this.positionWatchList].join(', ')}`);
+    // ===============================================================
+    
     if (this.positionWatchList.size === 0) {
       logger.info(`[${timestamp}] [持仓扫描] 无持仓股票，跳过`);
       return; // 没有持仓，跳过扫描
