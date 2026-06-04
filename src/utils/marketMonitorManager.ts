@@ -4423,6 +4423,14 @@ class MarketMonitorManager {
     const currentPrice = data.currentPrice;
     const isBelowBuyPrice = hasValidPosition && entryPrice > 0 && currentPrice < entryPrice * 0.97; // 低于买入价3%以上才保护
     
+    // ====== 【新增】持仓亏损检测 ======
+    // 计算持仓亏损比例
+    let positionLossPercent = 0;
+    if (hasValidPosition && entryPrice > 0 && currentPrice > 0) {
+      positionLossPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+      logger.info(`[${timestamp}] [持仓亏损检测] ${data.stockName}(${data.stockCode}) - 持仓亏损: ${positionLossPercent.toFixed(2)}%`);
+    }
+    
     // 6. 从智能优化器获取动态跌幅阈值（可自动学习优化）
     const optimizer = getIntelligentOptimizer();
     const optimizerParams = optimizer.getParams();
@@ -4619,7 +4627,14 @@ class MarketMonitorManager {
       // 最近10天内有过连续2天下跌且累计跌幅超过5%
       (maxConsecutiveDownDaysInPeriod >= 2 && maxDownTrendStrengthInPeriod >= 5) ||
       // 最近10天内有过连续3天及以上下跌
-      (maxConsecutiveDownDaysInPeriod >= 3)
+      (maxConsecutiveDownDaysInPeriod >= 3) ||
+      // ====== 【新增】持仓亏损检测 ======
+      // 持仓亏损超过5%
+      (positionLossPercent < -5) ||
+      // 持仓亏损超过3%且跌破均线
+      (positionLossPercent < -3 && currentPrice < ma.ma5) ||
+      // 持仓亏损超过3%且主力资金流出
+      (positionLossPercent < -3 && mainForceNetFlow < -50000)
     );
     
     // 判断是否为下跌破位（新增）
