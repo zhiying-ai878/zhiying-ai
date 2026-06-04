@@ -4449,11 +4449,11 @@ class MarketMonitorManager {
       return null;
     }
     
-    // 8. 如果低于买入价3%以上，且不是极端下跌，才跳过
-    if (isBelowBuyPrice && !isExtremeDrop) {
+    // 8. 【修复】取消"低于买入价3%跳过"的限制，改为记录日志
+    //    用户明确要求持仓亏损时生成卖出信号，所以不再阻止
+    if (isBelowBuyPrice) {
       const lossPercent = ((currentPrice - entryPrice) / entryPrice * 100).toFixed(2);
-      logger.info(`[${timestamp}] [卖出信号保护] ${data.stockName}(${data.stockCode}) - 当前价(${currentPrice})低于买入价(${entryPrice})3%以上，亏损${lossPercent}%，跳过卖出信号`);
-      return null;
+      logger.info(`[${timestamp}] [卖出信号] ${data.stockName}(${data.stockCode}) - 当前价(${currentPrice})低于买入价(${entryPrice})3%以上，亏损${lossPercent}%，允许生成卖出信号`);
     }
     // === 新增关键保护机制结束 ===
     
@@ -4705,6 +4705,20 @@ class MarketMonitorManager {
       isHoldingStock && data.changePercent !== undefined && data.changePercent < (dynamicDownThreshold - 1) && macdCrossSignal === 1,
       // 持仓股跌幅超过(动态阈值-1%) + KDJ死叉
       isHoldingStock && data.changePercent !== undefined && data.changePercent < (dynamicDownThreshold - 1) && kdjCrossSignal === 1,
+      // ===== 【新增】持仓亏损条件 =====
+      // 持仓亏损超过5%
+      isHoldingStock && positionLossPercent < -5,
+      // 持仓亏损超过4%且跌破均线
+      isHoldingStock && positionLossPercent < -4 && currentPrice < ma.ma5,
+      // 持仓亏损超过3%且主力资金流出
+      isHoldingStock && positionLossPercent < -3 && mainForceNetFlow < -50000,
+      // 持仓亏损超过3%且RSI走低
+      isHoldingStock && positionLossPercent < -3 && rsi < 45,
+      // 持仓亏损超过3%且MACD死叉
+      isHoldingStock && positionLossPercent < -3 && macdCrossSignal === 1,
+      // 持仓亏损超过3%且KDJ死叉
+      isHoldingStock && positionLossPercent < -3 && kdjCrossSignal === 1,
+      // ==================================
       // 下跌破位 + 资金流出
       isDownBreakout && mainForceNetFlow < 0,
       // 跌破10日均线 + 资金流出
