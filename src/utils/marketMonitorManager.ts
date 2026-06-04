@@ -4365,7 +4365,8 @@ class MarketMonitorManager {
     // ==========================================================================
 
     // 卖出信号只针对持仓股票生成（用户要求）
-    const isHoldingStock = this.signalManager.getPosition(data.stockCode) !== undefined;
+    // 【修复】使用标准化代码查询持仓，确保匹配
+    const isHoldingStock = this.signalManager.getPosition(normalizedStockCode) !== undefined;
 
     // 如果不是持仓股票，直接返回null，不生成卖出信号
     if (!isHoldingStock) {
